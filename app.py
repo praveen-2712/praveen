@@ -102,7 +102,7 @@ def predict():
             # For now, we'll wrap in try-except to avoid crashing if layer name is wrong
             heatmap_b64 = None
             try:
-                last_conv_layer_name = "top_activation" # Common in EfficientNet
+                last_conv_layer_name = "out_relu"  # MobileNetV2 last activation layer
                 heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name)
                 overlayed = overlay_heatmap(heatmap, pil_image)
                 heatmap_b64 = pil_to_base64(Image.fromarray(overlayed))

@@ -3,6 +3,9 @@ tensorflow
 pillow
 numpy
 opencv-python
+imutils
+scikit-learn
 gunicorn
 requests
 matplotlib
+seaborn
