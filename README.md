@@ -12,8 +12,8 @@ This project is a machine learning application designed to detect brain tumors f
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/Chan-electro/brain-tumor-ml.git
-    cd brain-tumor-ml
+    git clone https://github.com/praveen-2712/praveen.git
+    cd praveen
     ```
 
 2.  **Create and activate a virtual environment (optional but recommended):**
