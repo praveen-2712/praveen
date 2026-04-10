@@ -1,0 +1,9 @@
+Flask==2.2.5
+Flask-Cors==3.0.10
+torch
+torchvision
+ultralytics
+opencv-python
+Pillow
+numpy<2.0.0
+Werkzeug==2.2.3
