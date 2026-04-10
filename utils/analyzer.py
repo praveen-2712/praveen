@@ -18,22 +18,18 @@ def generate_report(label, confidence, regions, image_shape):
         report["notes"] = "Clinical correlation remains recommended if symptoms persist."
         return report
 
-    # Characteristics based on tumor type
+    # Characteristics based on tumor type (Descriptive only)
     if label == "glioma":
-        char_type = "Intra-axial mass with infiltrative margins. Often involves deep white matter."
-        risk = "Potential neurosurgical intervention required for histopathological confirmation."
+        char_type = "Radiological patterns consistent with an intra-axial mass and infiltrative margins."
     elif label == "meningioma":
-        char_type = "Extra-axial, well-circumscribed lesion. Likely originating from the dura mater."
-        risk = "Consider clinical follow-up or surgical resection depending on size and symptoms."
+        char_type = "Radiological patterns consistent with an extra-axial, well-circumscribed lesion."
     elif label == "pituitary":
-        char_type = "Sellar or suprasellar mass suggesting pituitary origin."
-        risk = "Endocrine evaluation and visual field testing recommended."
+        char_type = "Radiological patterns consistent with a sellar or suprasellar mass."
     else:
-        char_type = "Lesion detected with specific characteristics described below."
-        risk = "Further diagnostic imaging may be warranted."
+        char_type = "Non-specific radiological patterns identified in the automated scan."
 
-    report["interpretation"] = f"Findings are suspicious for {label} lesion ({confidence}% confidence)."
-    report["notes"] = f"{char_type} {risk}"
+    report["interpretation"] = f"Automated analysis identified patterns suspicious for {label} ({confidence}% confidence)."
+    report["notes"] = f"{char_type}"
 
     # Analyze each region
     for r in regions:
@@ -42,14 +38,11 @@ def generate_report(label, confidence, regions, image_shape):
         dist_from_center = np.sqrt(((cx / image_shape[1]) - 0.5)**2 + ((cy / image_shape[0]) - 0.5)**2)
         
         location = "Central" if dist_from_center < 0.25 else "Peripheral"
-        margin = "Regular" if r["area"] > 500 else "Small/Diffuse" # Simplified heuristic
 
         report["regions"].append({
             "id": r["id"],
             "location": location,
-            "margin": margin,
             "area_px": int(r["area"]),
-            "intensity": "Regular",
             "source": r.get("source", "Standard"),
             "sources": r.get("sources", [r.get("source", "Standard")]),
             "crop_b64": r.get("crop_b64", "")
