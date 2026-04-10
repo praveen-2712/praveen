@@ -3,99 +3,93 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, WeightedRandomSampler
-from torchvision import datasets, transforms, models
+from torchvision import datasets, transforms
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
 import numpy as np
 import cv2
-from tqdm import tqdm
 import json
+import timm
+from tqdm import tqdm
+import sys
+
+# Import our unified preprocessing so the model trains on exactly what inference sees
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils.preprocess import get_train_transforms, get_inference_transforms, crop_brain_contour, IMG_SIZE
+from utils.gpu_config import get_nvidia_device
+
 # Config
 DATA_DIR = "data"
-IMG_SIZE = 260
-BATCH_SIZE = 16 
-EPOCHS = 40
+BATCH_SIZE = 16 # Increased batch size since we removed the complex Hybrid branches
+EPOCHS = 20 # 20 epochs is more than enough for EfficientNet on small datasets
 MODEL_PATH = "models/tumor_classifier.pth"
 LABEL_MAP_PATH = "models/label_map.json"
 
-# Custom Medical Dataset for Albumentations (NumPy bridging)
 class MedicalDataset(datasets.ImageFolder):
+    def __init__(self, root, transform=None):
+        super().__init__(root)
+        self.transform = transform
+        
     def __getitem__(self, index):
         path, target = self.samples[index]
+        # Read with OpenCV (BGR)
         image = cv2.imread(path)
+        # Convert to RGB (Ultralytics and PIL standard)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # APPLY EXACT SAME CROP LOGIC AS INFERENCE
+        image = crop_brain_contour(image)
+        
         if self.transform is not None:
             augmented = self.transform(image=image)
             image = augmented['image']
+            
         return image, target
 
-# Focal Loss Implementation for Difficult Cases
-class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=2):
-        super(FocalLoss, self).__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-
-    def forward(self, inputs, targets):
-        ce_loss = nn.CrossEntropyLoss(reduction='none')(inputs, targets)
-        pt = torch.exp(-ce_loss)
-        focal_loss = self.alpha * (1 - pt)**self.gamma * ce_loss
-        return focal_loss.mean()
-
-def get_train_transforms():
-    return A.Compose([
-        A.Resize(height=IMG_SIZE, width=IMG_SIZE),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.2),
-        A.RandomRotate90(p=0.5),
-        A.CLAHE(clip_limit=4.0, p=0.5),
-        A.GridDistortion(p=0.3), # Medical mesh distortion
-        A.OpticalDistortion(distort_limit=0.05, shift_limit=0.05, p=0.3),
-        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ToTensorV2(),
-    ])
+class EfficientNetTumorModel(nn.Module):
+    def __init__(self, num_classes):
+        super(EfficientNetTumorModel, self).__init__()
+        # SOTA highly accurate feature extractor
+        self.backbone = timm.create_model('efficientnet_b4', pretrained=True, num_classes=num_classes)
+        
+    def forward(self, x):
+        return self.backbone(x)
 
 def train():
-    import sys
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from utils.gpu_config import get_nvidia_device
     device = get_nvidia_device()
-    print(f"Training on: {device} (DirectML NVIDIA Forced)")
+    print(f"Training on: {device} | Using Unified Architecture: EfficientNetB4 Grad-CAM Extractor")
     
-    # ... (Data Loading logic same) ...
     train_dir = os.path.join(DATA_DIR, 'train')
     val_dir = os.path.join(DATA_DIR, 'val')
-    train_data = MedicalDataset(train_dir, transform=get_train_transforms())
-    val_data = datasets.ImageFolder(val_dir, transform=transforms.Compose([
-        transforms.Resize((IMG_SIZE, IMG_SIZE)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-    ]))
     
+    # Validation uses inference transforms (but we must re-wrap using A.Compose compatible Dataset)
+    val_transform = get_inference_transforms()
+    
+    train_data = MedicalDataset(train_dir, transform=get_train_transforms())
+    val_data = MedicalDataset(val_dir, transform=val_transform)
+    
+    os.makedirs(os.path.dirname(LABEL_MAP_PATH), exist_ok=True)
+    with open(LABEL_MAP_PATH, "w") as f:
+        json.dump(train_data.class_to_idx, f)
+        
+    print(f"Training Classes Found: {train_data.class_to_idx}")
+    
+    # Class weights for mild imbalance
     class_counts = np.array([len([x for x in train_data.samples if x[1] == i]) for i in range(len(train_data.classes))])
     class_weights = 1. / class_counts
-    sampler = WeightedRandomSampler(np.array([class_weights[t] for _, t in train_data.samples]), len(train_data.samples))
+    sample_weights = np.array([class_weights[t] for _, t in train_data.samples])
+    sampler = WeightedRandomSampler(sample_weights, len(train_data.samples))
     
     train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, sampler=sampler, num_workers=0)
     val_loader = DataLoader(val_data, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
     
-    # Model Setup
-    print("Loading EfficientNet-B2...")
-    model = models.efficientnet_b2()
-    model.classifier[1] = nn.Linear(model.classifier[1].in_features, len(train_data.classes))
-    
-    # FINE-TUNING MODE: Load existing weights if available
-    if os.path.exists(MODEL_PATH):
-        print(f"Found existing weights: {MODEL_PATH}. Entering Fine-Tuning Mode.")
-        model.load_state_dict(torch.load(MODEL_PATH, map_location='cpu'))
-    
+    model = EfficientNetTumorModel(len(train_data.classes))
     model = model.to(device)
     
-    criterion = FocalLoss(gamma=2.5) # Focal Loss for accuracy boost
-    optimizer = optim.AdamW(model.parameters(), lr=5e-5 if os.path.exists(MODEL_PATH) else 1e-4) # Lower LR for fine-tuning
-    # ... rest of training loop same ...
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
-    scaler = torch.cuda.amp.GradScaler() # Mixed Precision
+    # Using standard high-stability CrossEntropy
+    criterion = nn.CrossEntropyLoss() 
+    optimizer = optim.AdamW(model.parameters(), lr=3e-4) # Higher initial LR for new architecture
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3, verbose=True)
+    scaler = torch.cuda.amp.GradScaler() 
     
     best_acc = 0
     
@@ -123,9 +117,8 @@ def train():
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
             
-            pbar.set_postfix({'loss': running_loss/len(pbar), 'acc': 100.*correct/total})
+            pbar.set_postfix({'loss': f"{running_loss/len(pbar):.4f}", 'acc': f"{100.*correct/total:.2f}%"})
             
-        # Validation
         model.eval()
         val_loss = 0.0
         val_correct = 0
@@ -143,13 +136,12 @@ def train():
         val_acc = 100. * val_correct / val_total
         print(f"Val Loss: {val_loss/len(val_loader):.4f} | Val Acc: {val_acc:.2f}%")
         
-        scheduler.step(val_loss)
+        scheduler.step(val_acc)
         
         if val_acc > best_acc:
-            print(f"Saving best model ({val_acc:.2f}%)...")
+            print(f"-> Saving new best model ({val_acc:.2f}%)")
             best_acc = val_acc
             torch.save(model.state_dict(), MODEL_PATH)
 
 if __name__ == "__main__":
-    # Fix for multiprocessing on Windows
     train()

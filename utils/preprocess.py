@@ -6,8 +6,8 @@ from torchvision import transforms
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-# EfficientNet-B2 optimal size is 260
-IMG_SIZE = (260, 260)
+# Hybrid Model (Swin) optimal patch size is 224
+IMG_SIZE = (224, 224)
 
 def get_inference_transforms():
     """
@@ -16,7 +16,21 @@ def get_inference_transforms():
     """
     return A.Compose([
         A.Resize(height=IMG_SIZE[0], width=IMG_SIZE[1]),
-        A.CLAHE(clip_limit=4.0, p=1.0),
+        A.CLAHE(clip_limit=3.0, p=1.0),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2(),
+    ])
+
+def get_train_transforms():
+    """
+    Training transforms that perfectly mirror the inference base.
+    """
+    return A.Compose([
+        A.Resize(height=IMG_SIZE[0], width=IMG_SIZE[1]),
+        A.HorizontalFlip(p=0.5),
+        A.RandomRotate90(p=0.5),
+        A.CLAHE(clip_limit=3.0, p=1.0), # MUST equal inference
+        A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=15, p=0.5),
         A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         ToTensorV2(),
     ])
@@ -61,6 +75,6 @@ def load_and_preprocess_image(file_storage):
     # 3. Augmentations & Normalization
     transform = get_inference_transforms()
     augmented = transform(image=image_np)
-    image_tensor = augmented['image'].unsqueeze(0) # (1, 3, 380, 380)
+    image_tensor = augmented['image'].unsqueeze(0) # (1, 3, 224, 224)
     
     return image_tensor, pil_display
