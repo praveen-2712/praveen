@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Training | Neurologix Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .progress-step {
+            margin-bottom: 20px;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="max-width: 900px;">
+        <h1 style="font-size: 2.2rem;">Training Suite</h1>
+        <p>Configured: EfficientNet-B2 (NLE-Pro) | 100 Epochs | RTX 5050 DirectML Acceleration</p>
+
+        <div id="setup-view">
+            <p style="margin: 30px 0; opacity: 0.7;">
+                Ready to retrain the diagnostic model on the full 3,000+ image dataset.
+                Using class weights to address intracranial mass imbalances.
+            </p>
+            <button class="btn" id="startBtn" onclick="startTraining()">Initialize Training Protocol</button>
+        </div>
+
+        <div id="training-view" style="display: none;">
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <p id="statusText">Allocating GPU Resources...</p>
+
+            <div class="log-viewer" id="logViewer">
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <a href="{{ url_for('index') }}"
+                style="color: var(--accent-color); text-decoration: none; font-size: 0.9rem;">← Protocol Selection</a>
+        </div>
+    </div>
+
+    <script>
+        function startTraining() {
+            document.getElementById('setup-view').style.display = 'none';
+            document.getElementById('training-view').style.display = 'block';
+
+            fetch('/api/train/start', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    pollStatus();
+                });
+        }
+
+        function pollStatus() {
+            fetch('/api/train/status')
+                .then(r => r.json())
+                .then(data => {
+                    const statusText = document.getElementById('statusText');
+                    const progressBar = document.getElementById('progressBar');
+                    const logViewer = document.getElementById('logViewer');
+
+                    statusText.innerText = data.running ? "Clinical Protocol in Progress..." : "Protocol Complete.";
+                    progressBar.style.width = data.progress + "%";
+                    logViewer.innerText = data.logs;
+                    logViewer.scrollTop = logViewer.scrollHeight;
+
+                    if (data.running) {
+                        setTimeout(pollStatus, 1000);
+                    }
+                });
+        }
+    </script>
+</body>
+
+</html>

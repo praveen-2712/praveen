@@ -1,29 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Brain Tumor Detector</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neurologix Pro | Brain Tumor Analysis</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>Brain Tumor Detection from MRI</h1>
-        <p>Select detection mode</p>
-        <form method="post">
-            <label>
-                <input type="radio" name="mode" value="binary" checked>
-                Binary (Tumor vs No tumor)
-            </label>
-            <br>
-            <label>
-                <input type="radio" name="mode" value="multi">
-                Multi class (Glioma, Meningioma, Pituitary, No tumor)
-            </label>
-            <br><br>
-            <button type="submit">Continue</button>
+        <div class="logo">🧠</div>
+        <h1>Neurologix Pro</h1>
+        <p>Advanced Clinical AI for Automated Brain Tumor Mapping & Classification</p>
+        
+        <form method="post" id="mainForm">
+            <div class="mode-selection">
+                <label class="mode-card active" id="card-binary">
+                    <input type="radio" name="mode" value="binary" checked onchange="updateMode('binary')">
+                    <h3>Binary Scan</h3>
+                    <p>Screening for presence of intracranial mass</p>
+                </label>
+                <label class="mode-card" id="card-multi">
+                    <input type="radio" name="mode" value="multi" onchange="updateMode('multi')">
+                    <h3>Full Diagnostic</h3>
+                    <p>Detailed classification (Glioma, etc.)</p>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn">Launch Diagnostic Interface</button>
         </form>
-        <p class="disclaimer">
-            This application is for research and educational purposes and is not a medical device.
+        
+        <div style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+            <p style="font-size: 0.9rem; margin-bottom: 10px;">Model Management</p>
+            <a href="{{ url_for('train_page') }}" class="btn" style="background: rgba(255,255,255,0.1);">Train Model (100 Epochs / GPU)</a>
+        </div>
+        
+        <p class="disclaimer" style="font-size: 0.75rem; margin-top: 40px; opacity: 0.5;">
+            FOR RESEARCH & EDUCATIONAL USE ONLY. NOT A MEDICAL DEVICE.
         </p>
     </div>
+
+    <script>
+        function updateMode(mode) {
+            document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+            document.getElementById('card-' + mode).classList.add('active');
+        }
+    </script>
 </body>
 </html>

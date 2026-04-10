@@ -42,3 +42,11 @@ instance/
 # IDE
 .vscode/
 .idea/
+
+.venv/
+runs/
+scratch/
+tmp/
+*.pt
+*.pth
+data/

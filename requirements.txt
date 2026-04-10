@@ -1,5 +1,8 @@
 flask
-tensorflow
+torch
+torchvision
+torchaudio
+--extra-index-url https://download.pytorch.org/whl/cu121
 pillow
 numpy
 opencv-python
@@ -9,3 +12,10 @@ gunicorn
 requests
 matplotlib
 seaborn
+tqdm
+albumentations
+flask-cors
+ultralytics
+segmentation-models-pytorch
+torch-directml
+imutils

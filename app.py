@@ -1,58 +1,66 @@
-from flask import Flask, render_template, request, redirect, url_for
-import tensorflow as tf
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+import torch
+import torch.nn as nn
+from torchvision import models
 import numpy as np
 import json
 import os
 import base64
 from io import BytesIO
 from PIL import Image
+import subprocess
+import threading
+from utils.gpu_config import get_nvidia_device
 
-# Import utils - assuming these will be created
+# Import Torch Utils
 from utils.preprocess import load_and_preprocess_image
-from utils.gradcam import make_gradcam_heatmap, overlay_heatmap
+from utils.inference import HybridInference
+from utils.analyzer import generate_report
 
 app = Flask(__name__)
 
 # Configuration
-MODEL_PATH = "models/tumor_classifier.h5"
-LABEL_MAP_PATH = "models/label_map.json"
+CONFIG = {
+    "classifier": "models/tumor_classifier.pth",
+    "yolo": "runs/detect/neurologix_yolo_bt_cpu4/weights/best.pt",
+    "unet": "models/unet_segmentor.pth",
+    "label_map": "models/label_map.json"
+}
 
-# Global variables for model and labels
-model = None
+# Global variables
+engine = None
 idx_to_label = {}
+train_status = {"running": False, "progress": 0, "logs": ""}
+device = get_nvidia_device()
 
-def load_model_and_labels():
-    global model, idx_to_label
+def load_engine():
+    global engine, idx_to_label
     
     # Load Label Map
-    if os.path.exists(LABEL_MAP_PATH):
-        with open(LABEL_MAP_PATH, "r") as f:
+    if os.path.exists(CONFIG["label_map"]):
+        with open(CONFIG["label_map"], "r") as f:
             label_map = json.load(f)
-        idx_to_label = {v: k for k, v in label_map.items()}
-        print(f"Loaded label map: {idx_to_label}")
+        idx_to_label = {int(v): k for k, v in label_map.items()}
     else:
-        print(f"Warning: Label map not found at {LABEL_MAP_PATH}")
-        # Default fallback if needed, or just empty
-        idx_to_label = {0: "No Model Loaded"}
+        idx_to_label = {0: "Unknown"}
 
-    # Load Model
-    if os.path.exists(MODEL_PATH):
-        try:
-            model = tf.keras.models.load_model(MODEL_PATH)
-            print("Model loaded successfully.")
-        except Exception as e:
-            print(f"Error loading model: {e}")
-    else:
-        print(f"Warning: Model not found at {MODEL_PATH}")
+    # Initialize Hybrid Engine
+    engine = HybridInference(
+        yolo_path=CONFIG["yolo"],
+        clf_path=CONFIG["classifier"],
+        unet_path=CONFIG["unet"],
+        device=device,
+        label_map=idx_to_label
+    )
 
-# Load on startup
-load_model_and_labels()
+load_engine()
 
 def pil_to_base64(pil_image):
+    if isinstance(pil_image, np.ndarray):
+        pil_image = Image.fromarray(pil_image)
     buffer = BytesIO()
     pil_image.save(buffer, format="PNG")
-    encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    return encoded
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -61,70 +69,87 @@ def index():
         return redirect(url_for("predict", mode=mode))
     return render_template("index.html")
 
+@app.route("/train")
+def train_page():
+    return render_template("train.html", status=train_status)
+
+@app.route("/api/train/start", methods=["POST"])
+def start_train():
+    global train_status
+    if train_status["running"]:
+        return jsonify({"status": "already running"})
+    
+    def run_training():
+        global train_status
+        train_status["running"] = True
+        train_status["progress"] = 0
+        train_status["logs"] = "Initializing PyTorch Medical-Grade Training Suite...\n"
+        
+        try:
+            process = subprocess.Popen(
+                [".venv\\Scripts\\python", "scripts/full_ensemble_train.py"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1
+            )
+            
+            for line in iter(process.stdout.readline, ""):
+                train_status["logs"] += line
+                if "%" in line and "/" in line:
+                    try:
+                        perc = line.split("%")[0].split(" ")[-1]
+                        train_status["progress"] = int(perc)
+                    except: pass
+                
+            process.wait()
+            train_status["logs"] += f"\nTraining Complete. Exit Code: {process.returncode}\n"
+            load_engine()
+        except Exception as e:
+            train_status["logs"] += f"\nRuntime Error: {e}\n"
+        
+        train_status["running"] = False
+
+    threading.Thread(target=run_training).start()
+    return jsonify({"status": "started"})
+
+@app.route("/api/train/status")
+def get_train_status():
+    return jsonify(train_status)
+
 @app.route("/predict", methods=["GET", "POST"])
 def predict():
     mode = request.args.get("mode", "multi")
-
     if request.method == "POST":
-        if "image" not in request.files:
-            return "No file part", 400
-
+        if "image" not in request.files: return "No file", 400
         file = request.files["image"]
-        if file.filename == "":
-            return "No selected file", 400
-
-        if model is None:
-            return "Model not loaded. Please train the model first.", 503
+        if engine is None: return "Engine not initialized", 503
 
         try:
-            img_array, pil_image = load_and_preprocess_image(file)
-
-            # Run prediction
-            preds = model.predict(img_array)[0]
-            predicted_idx = int(np.argmax(preds))
-            confidence = float(preds[predicted_idx])
+            image_tensor, pil_display = load_and_preprocess_image(file)
             
-            # Get label safely
-            label = idx_to_label.get(predicted_idx, "Unknown")
-
-            # Binary mode logic
-            binary_label = None
-            if mode == "binary":
-                # Assuming 'no_tumor' is the label for no tumor
-                if label.lower() == "no_tumor":
-                    binary_label = "No Tumor"
-                else:
-                    binary_label = "Tumor"
-
-            # Grad CAM
-            # Note: 'top_conv' is a placeholder. EfficientNetB0 usually has 'top_activation' or similar.
-            # We will need to verify the layer name after training.
-            # For now, we'll wrap in try-except to avoid crashing if layer name is wrong
-            heatmap_b64 = None
-            try:
-                last_conv_layer_name = "out_relu"  # MobileNetV2 last activation layer
-                heatmap = make_gradcam_heatmap(img_array, model, last_conv_layer_name)
-                overlayed = overlay_heatmap(heatmap, pil_image)
-                heatmap_b64 = pil_to_base64(Image.fromarray(overlayed))
-            except Exception as e:
-                print(f"GradCAM error: {e}")
-                # Fallback: just show original image twice or handle in template
-                heatmap_b64 = pil_to_base64(pil_image)
-
-            original_b64 = pil_to_base64(pil_image)
+            # Hybrid Inference
+            results = engine.predict(image_tensor, pil_display)
+            
+            # Generate Clinical Report
+            report = generate_report(results["label"], round(results["confidence"], 2), results["detections"], np.array(pil_display).shape)
 
             return render_template(
                 "result.html",
-                mode=mode,
-                label=label,
-                binary_label=binary_label,
-                confidence=round(confidence * 100, 2),
-                original_image=original_b64,
-                heatmap_image=heatmap_b64
+                mode=mode, 
+                label=results["label"], 
+                confidence=round(results["confidence"], 2),
+                original_image=pil_to_base64(results["overlayed_core"]) if results["overlayed_core"] is not None else pil_to_base64(pil_display),
+                detection_image=pil_to_base64(results["annotated_image"]) if results["annotated_image"] is not None else pil_to_base64(pil_display),
+                segmentation_image=pil_to_base64(results["segmented_image"]) if results["segmented_image"] is not None else pil_to_base64(pil_display),
+                report=report
             )
         except Exception as e:
-            print(f"Prediction error: {e}")
-            return f"An error occurred during prediction: {e}", 500
+            import traceback
+            print(traceback.format_exc())
+            return f"Error: {e}", 500
 
     return render_template("predict.html", mode=mode)
 

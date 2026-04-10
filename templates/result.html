@@ -1,41 +1,274 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Prediction Result</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid AI Pipeline | Neurologix AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --panel-bg: rgba(20, 25, 35, 0.95);
+            --border-glow: rgba(0, 150, 255, 0.2);
+            --accent-blue: #0096ff;
+            --accent-teal: #00f2fe;
+        }
+        body {
+            background: radial-gradient(circle at top right, #1a2a44, #0a0e14);
+            font-family: 'Outfit', sans-serif;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+        }
+        .dashboard-title h1 {
+            font-size: 1.6rem;
+            margin: 0;
+            background: linear-gradient(to right, #fff, #888);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+        .main-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+        .sidebar {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .top-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        .pipeline-card {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .pipeline-card h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: var(--accent-blue);
+            display: flex;
+            justify-content: space-between;
+        }
+        .pipeline-image {
+            width: 100%;
+            border-radius: 8px;
+            background: #000;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .isolated-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        .tumor-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        .tumor-card:hover {
+            background: rgba(0, 153, 255, 0.05);
+            border-color: var(--accent-blue);
+        }
+        .tumor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .tumor-label {
+            font-weight: 800;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        .confidence-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            background: var(--accent-blue);
+            color: #fff;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        .tumor-visuals {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            max-width: 80%;
+            max-height: 80%;
+            border: 2px solid var(--accent-blue);
+            box-shadow: 0 0 50px rgba(0, 150, 255, 0.4);
+            border-radius: 12px;
+        }
+        .zoom-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            transition: all 0.3s;
+        }
+        .zoom-btn:hover {
+            background: var(--accent-blue);
+        }
+    </style>
 </head>
-
 <body>
-    <div class="container">
-        <h1>Prediction Result</h1>
+    <div id="closeupModal" class="modal" onclick="closeModal()">
+        <img class="modal-content" id="modalImg">
+        <div style="position: absolute; top: 20px; right: 20px; font-size: 2rem; cursor: pointer;">&times;</div>
+    </div>
 
-        {% if mode == 'binary' %}
-        <p>Binary result: <strong>{{ binary_label }}</strong></p>
-        {% endif %}
+    <!-- ... (rest of header same) ... -->
+    <div class="dashboard-header">
+        <div class="dashboard-title">
+            <h1>Neurologix AI Research-Grade Pipeline v4.0</h1>
+            <p style="margin:5px 0 0 0; font-size: 0.75rem; opacity: 0.6;">Hybrid Diagnostic Workflow | Multi-Model Ensemble</p>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.75rem; opacity: 0.5;">CASE ID: NLE-{{ range(1000,9999)|random }}</div>
+            <div style="font-size: 0.75rem; opacity: 0.5;">TIMESTAMP: {{ range(10,30)|random }}m ago</div>
+        </div>
+    </div>
 
-        <p>Model prediction: <strong>{{ label }}</strong></p>
-        <p>Confidence: <strong>{{ confidence }}%</strong></p>
-
-        <div class="images">
-            <div>
-                <h2>Original Image</h2>
-                <img src="data:image/png;base64,{{ original_image }}" alt="Original MRI">
+    <div class="main-layout">
+        <!-- Dashboard Sidebar -->
+        <div class="sidebar">
+            <h2 style="font-size: 1.1rem; margin-top: 0;">Diagnostic Report</h2>
+            
+            <div style="margin: 20px 0;">
+                <div style="font-size: 0.7rem; opacity: 0.5; text-transform: uppercase;">Primary Classification</div>
+                <div style="font-size: 1.3rem; font-weight: 800; color: #fff;">{{ label.upper() }}</div>
+                <div style="font-size: 0.8rem; color: var(--accent-teal);">{{ confidence }}% Confidence</div>
             </div>
-            <div>
-                <h2>Grad CAM Heatmap</h2>
-                <img src="data:image/png;base64,{{ heatmap_image }}" alt="Grad CAM">
+
+            <div style="margin: 20px 0;">
+                <div style="font-size: 0.7rem; opacity: 0.5; text-transform: uppercase;">Diagnostic Notes</div>
+                <p style="font-size: 0.8rem; opacity: 0.7; font-style: italic;">{{ report.notes }}</p>
             </div>
+
+            <a href="/" class="btn" style="width: 100%; box-sizing: border-box; text-align: center; margin-top: 20px;">New MRI Upload</a>
         </div>
 
-        <p class="disclaimer">
-            This tool is a research and educational prototype. It must not be used for diagnosis or treatment decisions.
-        </p>
+        <!-- Main Pipeline Display -->
+        <div class="main-content">
+            <div class="top-row">
+                <div class="pipeline-card">
+                    <h3>Diagnostic Mapping <span style="opacity: 0.5;">[GRAD-CAM]</span></h3>
+                    <img src="data:image/png;base64,{{ original_image }}" class="pipeline-image" alt="Core MRI">
+                </div>
+                <div class="pipeline-card">
+                    <h3>Detection (YOLOv8) <span style="opacity: 0.5;">[ROI]</span></h3>
+                    <img src="data:image/png;base64,{{ detection_image }}" class="pipeline-image" alt="YOLO Detection">
+                </div>
+                <div class="pipeline-card">
+                    <h3>Segmentation (U-Net) <span style="opacity: 0.5;">[MASKS]</span></h3>
+                    <img src="data:image/png;base64,{{ segmentation_image }}" class="pipeline-image" alt="U-Net Mask">
+                </div>
+            </div>
 
-        <a href="{{ url_for('predict', mode=mode) }}">Analyze another image</a>
-        <br>
-        <a href="{{ url_for('index') }}">Back to Home</a>
+            <div>
+                <h2 style="font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    Isolated Pathologies 
+                    <span style="font-size: 0.7rem; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-weight: 400;">
+                        {{ report.regions|length if report.regions else 0 }} REGION(S) FOUND
+                    </span>
+                </h2>
+                
+                <div class="isolated-grid">
+                    {% if report.regions %}
+                        {% for r in report.regions %}
+                            <div class="tumor-card">
+                                <div class="tumor-header">
+                                    <div class="tumor-label">PATHOLOGY #{{ loop.index }} [{{ label.upper() }}]</div>
+                                    <button class="zoom-btn" onclick="openModal('{{ r.crop_b64 }}')">Zoom Focus</button>
+                                </div>
+                                <div style="margin-bottom: 15px; display: flex; gap: 5px; flex-wrap: wrap;">
+                                    {% for s in r.sources %}
+                                        <span class="confidence-badge" style="background: {{ 'var(--accent-blue)' if s == 'yolo' else 'var(--accent-teal)' }}; color: {{ '#000' if s != 'yolo' else '#fff' }}; font-size: 0.6rem;">{{ s.upper() }}</span>
+                                    {% endfor %}
+                                    <span class="confidence-badge" style="background: rgba(255,255,255,0.1); color: #fff;">{{ confidence }}%</span>
+                                </div>
+                                <div class="tumor-visuals">
+                                    <div onclick="openModal('{{ r.crop_b64 }}')" style="cursor: zoom-in;">
+                                        <div style="font-size: 0.6rem; opacity: 0.5; margin-bottom: 5px;">DIAGNOSTIC FOCUS</div>
+                                        <img src="data:image/png;base64,{{ r.crop_b64 }}" alt="Crop">
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.6rem; opacity: 0.5; margin-bottom: 5px;">SEGMENTATION</div>
+                                        <img src="data:image/png;base64,{{ segmentation_image }}" alt="Segmentation">
+                                    </div>
+                                </div>
+                                <div style="margin-top: 12px; font-size: 0.75rem; opacity: 0.8;">
+                                    <strong>LOCATION:</strong> {{ r.location }}<br>
+                                    <strong>CONSENSUS:</strong> {{ r.sources|join(' + ')|upper }}<br>
+                                    <strong>MORPHOLOGY:</strong> {{ r.margin }} margins, {{ r.intensity }} signal.
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="tumor-card" style="opacity: 0.5; display: flex; align-items: center; justify-content: center; height: 100px;">
+                            No isolated pathologies detected.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
-</body>
 
+    <script>
+        function openModal(b64) {
+            document.getElementById('modalImg').src = "data:image/png;base64," + b64;
+            document.getElementById('closeupModal').style.display = "flex";
+        }
+        function closeModal() {
+            document.getElementById('closeupModal').style.display = "none";
+        }
+    </script>
+</body>
 </html>

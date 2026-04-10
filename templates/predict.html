@@ -1,23 +1,40 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Upload MRI Image</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRI Upload | Neurologix Pro</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-
 <body>
-    <div class="container">
-        <h1>Upload MRI Image</h1>
-        <p>Mode: <strong>{{ mode|capitalize }}</strong></p>
-        <form method="post" enctype="multipart/form-data">
-            <div class="upload-area">
-                <input type="file" name="image" accept="image/*" required>
+    <div class="container" style="max-width: 800px;">
+        <h1 style="font-size: 2rem;">Upload MRI Scan</h1>
+        <p>Selected Protocol: <strong>{{ mode|capitalize }} Analysis</strong></p>
+        
+        <form method="post" enctype="multipart/form-data" id="uploadForm">
+            <div class="upload-area" id="drop-area">
+                <p>Drag and drop T2/FLAIR MRI slice here</p>
+                <input type="file" name="image" id="fileElem" accept="image/*" required onchange="handleFiles(this.files)" style="display:none">
+                <button type="button" class="btn" style="background: rgba(255,255,255,0.1);" onclick="document.getElementById('fileElem').click()">Select File</button>
+                <div id="gallery" style="margin-top: 20px;"></div>
             </div>
-            <button type="submit">Predict</button>
+            
+            <button type="submit" class="btn" id="predictBtn">Start Automated Diagnosis</button>
         </form>
-        <a href="{{ url_for('index') }}">Back to Home</a>
+        
+        <a href="{{ url_for('index') }}" style="color: var(--accent-color); text-decoration: none; display: block; margin-top: 20px; font-size: 0.9rem;">← Back to Protocol Selection</a>
     </div>
-</body>
 
+    <script>
+        function handleFiles(files) {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+            const file = files[0];
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.maxHeight = '200px';
+            gallery.appendChild(img);
+        }
+    </script>
+</body>
 </html>
