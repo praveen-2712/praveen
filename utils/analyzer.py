@@ -9,13 +9,11 @@ def generate_report(label, confidence, regions, image_shape):
         "confidence": confidence,
         "n_lesions": len(regions),
         "regions": [],
-        "interpretation": "",
-        "notes": ""
+        "interpretation": ""
     }
 
     if label == "no_tumor":
         report["interpretation"] = "No evidence of intracranial mass lesion detected."
-        report["notes"] = "Clinical correlation remains recommended if symptoms persist."
         return report
 
     # Characteristics based on tumor type (Descriptive only)
@@ -29,7 +27,6 @@ def generate_report(label, confidence, regions, image_shape):
         char_type = "Non-specific radiological patterns identified in the automated scan."
 
     report["interpretation"] = f"Automated analysis identified patterns suspicious for {label} ({confidence}% confidence)."
-    report["notes"] = f"{char_type}"
 
     # Analyze each region
     for r in regions:
