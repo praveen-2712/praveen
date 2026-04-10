@@ -30,7 +30,6 @@ CONFIG = {
 # Global variables
 engine = None
 idx_to_label = {}
-train_status = {"running": False, "progress": 0, "logs": ""}
 device = get_nvidia_device()
 
 def load_engine():
@@ -68,56 +67,6 @@ def index():
         mode = request.form.get("mode", "multi")
         return redirect(url_for("predict", mode=mode))
     return render_template("index.html")
-
-@app.route("/train")
-def train_page():
-    return render_template("train.html", status=train_status)
-
-@app.route("/api/train/start", methods=["POST"])
-def start_train():
-    global train_status
-    if train_status["running"]:
-        return jsonify({"status": "already running"})
-    
-    def run_training():
-        global train_status
-        train_status["running"] = True
-        train_status["progress"] = 0
-        train_status["logs"] = "Initializing PyTorch Medical-Grade Training Suite...\n"
-        
-        try:
-            process = subprocess.Popen(
-                [".venv\\Scripts\\python", "scripts/full_ensemble_train.py"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                bufsize=1
-            )
-            
-            for line in iter(process.stdout.readline, ""):
-                train_status["logs"] += line
-                if "%" in line and "/" in line:
-                    try:
-                        perc = line.split("%")[0].split(" ")[-1]
-                        train_status["progress"] = int(perc)
-                    except: pass
-                
-            process.wait()
-            train_status["logs"] += f"\nTraining Complete. Exit Code: {process.returncode}\n"
-            load_engine()
-        except Exception as e:
-            train_status["logs"] += f"\nRuntime Error: {e}\n"
-        
-        train_status["running"] = False
-
-    threading.Thread(target=run_training).start()
-    return jsonify({"status": "started"})
-
-@app.route("/api/train/status")
-def get_train_status():
-    return jsonify(train_status)
 
 @app.route("/predict", methods=["GET", "POST"])
 def predict():

@@ -1,0 +1,64 @@
+NEUROLOGIX PRO: CLINICAL-GRADE MRI DIAGNOSTIC SYNTHESIS
+=====================================================
+
+PROJECT OBJECTIVE:
+Automated multi-class classification and spatial localization of brain tumors 
+from MRI scans to support clinical decision-making.
+
+1. TECHNICAL ARCHITECTURE
+-----------------------------------------------------
+*   Primary Classifier: EfficientNetB4 (Baseline) and Hybrid Swin-Transformer.
+*   Detection Module: YOLOv8 integrated for rapid ROI (Region of Interest) tracking.
+*   Segmentation Module: U-Net architecture for pixel-level mass delineation.
+*   Explainability Engine: Grad-CAM++ (Gradient-weighted Class Activation Mapping).
+    - Uses 1st, 2nd, and 3rd order gradients.
+    - Provides high-precision localization compared to standard Grad-CAM.
+*   Backend: Flask-based clinical workbench.
+
+2. METHODOLOGY & PREPROCESSING
+-----------------------------------------------------
+The pipeline implements specific medical imaging standards:
+*   Brain Contour Extraction: Gaussian Blur + Thresholding + Contour detection 
+    to isolate brain tissue from skull/background.
+*   CLAHE (Contrast Limited Adaptive Histogram Equalization): Normalizes image 
+    contrast for better feature detection in low-contrast MRI slices.
+*   Z-Score Normalization: Standardizes intensity distribution based on 
+    dataset-wide mean and standard deviation.
+*   Image Resizing: Normalized to 224x224 pixels (optimized for Transformer/CNN hybrids).
+
+3. DATASET & CLASSIFICATION TARGETS
+-----------------------------------------------------
+The model is trained to identify and localize four distinct categories:
+1.  Glioma: Primary brain tumor starting in glial cells.
+2.  Meningioma: Tumor arising from the meninges (membranes around the brain).
+3.  Pituitary: Tumor located in the pituitary gland.
+4.  No Tumor: Healthy healthy tissue calibration.
+
+4. TRAINING STRATEGY
+-----------------------------------------------------
+*   Optimizer: AdamW (Adam with Weight Decay) for stable convergence.
+*   Loss Function: Cross-Entropy Loss with focal weights.
+*   Scheduling: ReduceLROnPlateau (factor=0.5, patience=3).
+*   Imbalance Handling: WeightedRandomSampler to prevent bias toward healthy scans.
+*   Hardware Acceleration: NVIDIA Mixed Precision Training (AMP) for reduced latency.
+
+5. CLINICAL WORKBENCH (FRONT-END)
+-----------------------------------------------------
+*   Side-by-Step Visualization: Original scan vs. Grad-CAM++ heatmap.
+*   Diagnostic Breakdown: Percentage-based confidence score per class.
+*   ROI Delineation: Automated bounding boxes around detected anomalies 
+    based on activation peaks.
+
+6. KEY RESEARCH INNOVATION
+-----------------------------------------------------
+The primary research value of this project lies in the "Diagnostic Synthesis" 
+approach—combining high-accuracy classification with Grad-CAM++ localization. 
+This ensures the model is not a "black box" but provides radiological proof 
+for its findings by highlighting the exact spatial regions influencing 
+the classification.
+
+-----------------------------------------------------
+Prepared for: Research Paper Documentation
+Project Directory: /mpv2
+Architecture: PyTorch / TensorFlow Hybrid
+-----------------------------------------------------
