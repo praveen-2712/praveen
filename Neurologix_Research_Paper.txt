@@ -1,0 +1,148 @@
+Brain Tumor Detection and Classification Using Deep Learning and Flask
+
+Prof. Priyamvada
+School of ECE
+REVA University
+Bengaluru, India
+priyamvada.verma@reva.edu.in
+	Praveen N
+Student, School of ECE
+REVA University
+Bengaluru, India
+praveenn1227@gmail.com	Padmini S P
+Student, School of ECE
+REVA University
+Bengaluru, India
+pdmn.s.p2922@gmail.com	Bhagya V
+Student, School of ECE
+REVA University
+Bengaluru, India
+Vbhagya320@gmail.com
+ 
+Abstract— One of the most challenging applications in clinical AI is the detection and classification of brain tumors from MRI images, which demands high diagnostic accuracy, spatial precision, as well as transparency and interpretability for medical use. This paper presents the multi-model ensemble deep learning pipeline for the brain tumor detection and classification system using three different deep learning neural networks which are coordinated by a single clinical inference engine which is exposed as a Flask web application. The three are: an Dual-Branch EfficientNetV2-S classifier at 380×380 resolution for 4-class tumor classification; a two-stage fine-tuning schedule of a YOLO11m object detector (~26M parameters) for spatial localization; and a ResNet50-encoder UNet for pixel-precise segmentation. The classifier's accuracy (3-view TTA) and macro F1 on the held-out test data were 97.2% and 0.9725 respectively. YOLO11m reached 0.9621 mAP@0.5 and the U-Net attained mean Dice of 0.8330. They are integrated throughout the model with MC-Dropout uncertainty quantification, four-view test-time augmentation, and Grad-CAM++ explainability. Results made available through a responsive Flask dashboard including radiological report, confidence visualisations and high-resolution ROI crops. Keywords—Brain tumor detection; deep learning; Dual-Branch EfficientNetV2-S; YOLO11m; U-Net; Grad-CAM++; MC-Dropout; ensemble inference; Flask; MRI classification.
+I. INTRODUCTION
+Primary brain tumours, including gliomas, meningiomas and pituitary adenomas, are the most common type, and are responsible for affecting hundreds of thousands of patients each year, necessitating rapid and accurate radiological assessment to inform treatment decisions from surgical resection to radiotherapy and chemotherapy. MRI continues to be the standard method for imaging brain tumors, providing excellent soft-tissue contrast without the exposure to radiation. However, in practice, manual interpretation by an expert is slow, subject to varying interpretations and often unavailable in resource-limited health care settings. Deep learning has shown real promise for the task of radiological assessment of neuroimaging data. However, there remains a disconnect between academic prototypes and systems that are ready for clinical use: many models are published as “black box”, do not allow to relate their predictions to a spatial map, have overly optimistic or static confidence scores, and do not offer any gating mechanism to prevent the output to be overly out of the scope of clinical relevance. This work proposes an end-to-end pipeline to fill these gaps. All the outputs are surfaced via a Flask web application, and there are three specialized neural networks that run under a shared clinical inference engine. 
+The main contributions are: (1) multi-model ensemble, rigorously validated; (2) end-to-end spatial localization; (3) explainability via Grad-CAM++ and anatomical mask gating; (4) cross-modal consensus arbitration (5) a clinical Flask dashboard with disclaimers of research use.
+A. Problem Definition
+Presently, there are some fragmented models available for the detection of a brain tumor that are used to solve individual aspects of the diagnostic procedure. Most published models report accuracy scores over non-independent partitions, which gives an over-optimistic score. Clinicians do not usually have access to information about the location of the tumor in the image, its extent at the pixel level, the level of uncertainty about the prediction, and reasoning of the model, which makes it hard to verify AI-generated results with appropriate confidence. Furthermore, there are almost no deployment gates (hard performance thresholds) that can be applied for programmatic rollout. If these gates are not there, degraded models are not able to give unreliable outputs without any automated process to identify ambiguous or contradictory predictions across models.
+B. Objective
+The goal is to design and implement a multi-model ensemble deep learning pipeline for brain tumor detection and classification from MRI images with a programmatically enforced deployment gates, spatial localization and clinical transparency. They are run by three specialized neural networks: a classifier, a detector, and a segmentor, which are controlled by a single clinical inference engine that coordinates their output, resolves conflicts and presents their results in a Flask web application. An important goal is to make the diagnostic more reliable and more accepted by the clinicians by providing a confidence score, an anatomically constrained visual explanation, and a flag whenever the model interpretation in different modalities differs.
+
+
+
+
+II. LITERATURE SURVEY
+TABLE I
+LITERATURE SURVEY
+Title	Authors	Description	Research Gap
+DL for Brain Tumor Diagnosis	G. S. Tandel et al. (2019)	Comprehensive review of CNN architectures for multi-class brain tumor classification.	High variance in cross-dataset performance and lack of clinical-grade ensembles.
+Transfer Learning in Neuro-Oncology	S. Deepak and P. M. Ameer (2019)	Evaluation of pretrained CNNs (GoogleNet) for 3-class classification on MRI.	Limited spatial interpretability; no pixel-level segmentation integration.
+Integrated Segmentation & Class.	J. Amin et al. (2018)	Proposed sequential pipeline for tumor localization and class prediction.	Lacks real-time uncertainty quantification and multi-model consensus.
+EfficientNet in Medical Imaging	M. Tan, Q. V. Le (ICML 2019)	Compound scaling for high-resolution anatomical detail in pathology.	Requires domain adaptation for MRI field-strength variations.
+U-Net: Biomedical Segmentation	O. Ronneberger et al. (MICCAI 2015)	Encoder-decoder with skip connections; standard for glioma masking.	Usually operates in isolation without classification gating.
+Grad-CAM++ Explainability	A. Chattopadhay et al. (WACV 2018)	Weighted second-order gradients for precise localization.	Background noise in MRI often causes false-positive activations.
+YOLOv8 for Lesion Detection	G. Jocher et al. (2023)	SOTA object detection; adapted for MRI lesion localization.	High sensitivity to domain shift between T1 and FLAIR sequences.
+BraTS 2021 Benchmark	S. Bakas et al. (arXiv 2021)	Standard dataset for glioma segmentation and volumetric analysis.	Most models are not integrated into diagnostic web applications.
+MC-Dropout for Clinical Risk	Y. Gal, Z. Ghahramani (ICML 2016)	Bayesian approximation for quantifying diagnostic uncertainty.	Computational overhead in real-time clinical inference environments.
+Ensemble Consensus Systems	M. S. Nawaz et al. (2020)	Multi-class brain tumor classification using deep learning and image processing.	Lacks programmatic deployment gating and centroid-based spatial validation.
+
+III. METHODOLOGY
+Proposed multi-model brain tumor detection system is structured, sequential, clinically-driven and designed to guarantee diagnostic accuracy, spatial precision, and transparent reporting of uncertainty. The methodology relies on a three-model approach with an inference architecture that is coordinated by a clinical inference engine, which will allow the outputs to be safe and reproducible on unseen MRI scans. The entire process is in 9 major stages, as follows. 
+1) Uploading and Format Checking of images: The system is capable of taking JPEG and PNG MRI images using a Flase upload interface. Inference is not started until the format is checked in the application layer. Each page has a required research disclaimer. 
+2) Anatomical Brain Mask Extraction: The Preprocess utility is used to extract an anatomical brain mask from each MRI image that is uploaded. All spatial outputs subsequent to the mask are AND-gated, thereby limiting model activations to the intracranial cavity so that no diagnostic significance is achieved for background or extracranial areas. 
+3) Dual-Branch EfficientNetV2-S Classification / 15-Pass Inference: The preprocessed image is sent to the Dual-Branch EfficientNetV2-S classifier at the original resolution of 380×380. Four views of the test-time augmentation are taken with 15 stochastic forward passes active (MC-Dropout). Before argmax, each of the softmax vectors is averaged, resulting in a 0.5% to 1.5% improvement in accuracy over a single pass inference. 
+4) Explainability with Anatomical Gating in Grad-CAM++. Grad-CAM++ heatmap is created by attaching to the convolutional head of the model. Percentile- clipping (2nd – 98th), Gaussian smoothing, AND gating (with brain extraction mask), and alpha-blending (50%) are applied to the original image. If the gradients reduce to zero, a saliency fallback is used. 
+5)YOLO11m Bounding Box Detection: The backbone is frozen in 25 epochs and unfrozen in the next 75 epochs with early stopping at patience=10 for the MRI image. Post-processing uses a greedy NMS with IoU=0.4, keeping the detections with confidence threshold > 0.20.
+ 6) Consensus Arbitration: If Dual-Branch EfficientNetV2-S does not detect any tumor, but YOLO11m identifies any tumor with confidence ≥0.40, it overrides the prediction and updates the system to 'Unclassified Finding—Review Required' with a pulsing visual feedback in the dashboard. 
+7) U-Net Pixel-Level Segmentation: For tumor-positive cases, the ResNet50-encoder U-Net takes a single-channel 256x256 FLAIR image as its input and outputs an image after applying the sigmoid thresholding at 0.5. The components with a minimum of 15% of the largest detected mass are retained in the connected component filtering. 
+8) Cross-Modal Spatial Validation: The centroid from the U-Net segmentation and the YOLO11m detection are compared. If the centroids are separated by more than max(80.0, 0.40 × YOLO Box Diagonal), a Discordant Modalities alert is generated, confidence is set to zero and a flag is added to the dashboard. 
+9) Flask Dashboard Delivery and Clinical Reporting: Each result is presented in a Flask-based web application on port 5000, across five well-structured panels: Primary Finding (with animated confidence bar); Dynamic Clinical Explanation; Pipeline Image Grid; Primary Clinical ROI Panel; and a lightbox viewer with full resolution of the images. 
+Fig. 3.1 Gate-controlled inference flow showing consensus arbitration, cross-modal validation, and domain-shift fallback branches.
+ Fig. 3.2 Sequential workflow from MRI upload through preprocessing, classification, detection, segmentation, arbitration, and Flask dashboard delivery.
+IV. PROPOSED WORK
+The proposed work focuses on the design and implementation of a multi-model ensemble deep learning pipeline enabling high-accuracy brain tumor detection and classification from MRI images with end-to-end spatial localization, pixel-level segmentation, and clinically transparent explainability. Three specialized neural networks are coordinated by a unified clinical inference engine to ensure reproducible, gate-validated outputs incorporating MC-Dropout uncertainty quantification, Grad-CAM++ explainability, and programmatic deployment gates.
+A. System Architecture
+The architecture follows a layered approach: (1) an input layer accepting JPEG and PNG MRI images with format validation and anatomical brain mask extraction; (2) a model inference layer processing each image through Dual-Branch EfficientNetV2-S, YOLO11m, and ResNet50-encoder U-Net independently; (3) the clinical inference engine coordinating consensus arbitration and fallback handling; and (4) the Flask presentation layer surfacing all outputs through structured clinical dashboards. Table II summarizes the three core model specifications.
+TABLE II
+MODEL SPECIFICATIONS AND ROLES
+Model	Task	Input	Output
+Dual-Branch EfficientNetV2-S	Classification	380×380 RGB	4-class softmax + uncertainty
+YOLO11m	Detection	640×640 RGB	Bounding box + confidence
+ResNet50 U-Net	Segmentation	256×256 Gray	Binary mask + centroid + area
+
+The augmentation strategy applied across models is summarized in Table III. The Albumentations library powers the classifier and U-Net pipelines, while Ultralytics' built-in augmentation handles YOLO11m.
+
+TABLE III
+AUGMENTATION TECHNIQUES AND CLINICAL JUSTIFICATION
+Technique	Models Applied	Clinical Rationale
+RandomRotate90	Classifier, U-Net	Accounts for scanner orientation variance
+HorizontalFlip	Classifier, U-Net	Left-right anatomical symmetry in brain MRI
+GaussNoise	Classifier, U-Net	Models MRI acquisition noise and thermal fluctuations
+CLAHE	Classifier, U-Net	Simulates contrast variability across field strengths
+ElasticTransform	Classifier, U-Net	Mimics soft-tissue deformation and anatomical variability
+CoarseDropout	Classifier only	Prevents anchoring to localized bright spots
+Mosaic (p=1.0)	YOLO11m	Multi-scale tumor context augmentation
+Mixup (p=0.15)	YOLO11m	Smooths class-boundary decision surfaces
+Label Smooth. (ε=0.05–0.1)	Classifier, YOLO11m	Reduces overconfidence, improves calibration
+
+B. Functional Modules
+The Dual-Branch EfficientNetV2-S Classification Module loads the model through the timm library and acts as the primary diagnostic head The model is loaded using the timm library and is the main diagnostic head within the Dual-Branch EfficientNetV2-S Classification Module. When the network is run at 380×380 resolution, it can take advantage of its full compound-scaled receptive field. The model is trained on 18,687 images using a Clinical Combined Loss (Cross Entropy 0.55 + Focal Loss 0.25 + Glioma Margin Loss 0.20) to aggressively penalize fatal false-negatives. Optimization uses differential learning rates (backbone: 2e-5, classification head: 1e-4), ramped up by OneCycleLR with 10% linear warmup and cosine decay. 
+YOLO11m Detection Module is a two-phase curriculum that fine-tunes the official pretrained YOLO11m detector. Phase 1 (25 epochs) unfreezes the backbone, Phase 2 (75 epochs) unfreezes the full network using early stopping and patience=10. During the second phase, Mosaic augmentation (p=1.0) and Mixup augmentation (p=0.15) are both turned on. The confidence threshold for the post-processing is set to 0.20, and IoU threshold is set to 0.4, performing the greedy NMS with IoU=0.4 and confidence threshold=0.20. 
+ResNet50 U-Net Segmentation Module is a U-Net with an ImageNet pretrained ResNet50 encoder, loaded using segmentation-models-pytorch. FLAIR input is single-channel 256×256, and the sigmoid thresholding of the input at 0.5 results in a binary tumor mask. Triplet loss (0.4×Dice + 0.3×BCE + 0.3×Focal) is used to tackle the foreground-background class imbalance. Trained with 24,354 pairs of BraTS slice-mask with 256x256 resolution. 
+The Clinical Inference Engine Module performs all three models in a tight, reproducible pipeline: anatomical brain mask extraction; 15-pass MC-Dropout + 3-view TTA classification; Grad-CAM++ heatmap generation aided by anatomical gating; Bounding box detection with YOLO11m; consensus arbitration; U-Net segmentation with connected component filtering; cross-modal centroid discordance detection. 
+The Flask Web Application Module runs the entire inference pipeline on port 5000. The result dashboard is divided into five panels: Primary Finding with animated confidence bar (blue ≥80%, amber 60–80%, red <60%); Dynamic Clinical Explanation; Pipeline Image Grid; Primary Clinical ROI Panel; and a full-resolution lightbox viewer. A summary of the Flask application routes is shown in Table IV.
+      TABLE IV
+FLASK APPLICATION ROUTE SUMMARY
+Route	Method	Description
+GET /	HTML	Upload landing page with mandatory research disclaimer
+GET/POST /predict	HTML	Single and multi-image MRI upload form
+POST /predict	HTML	Inference endpoint — returns full clinical dashboard
+
+V. RESULTS
+A. Frontend Result Analysis
+The developed Flask web interface offers a clinical dashboard for each uploaded MRI with a structured interface. The primary finding area shows an animated confidence bar, colour coded by the confidence tier, as well as the predicted tumor class (Glioma, Meningioma, No Tumor, or Pituitary). Results with a model confidence below 60% are not shown and would be otherwise presented with false confidence, avoiding cases that have a model that is not very confident in its answer.
+The Dynamic Clinical Explanation panel is based on classifier confidence, successful identification of the spatial mass, and intracranial volume percentage, and generates a dictation similar to that produced by a radiologist. The Pipeline Image Grid displays the heatmap generated by the Grad-CAM++ network, the detection overlay generated by the YOLO11m model and the binary mask generated by the U-Net alongside the image to be compared.
+The Primary Clinical ROI panel shows a zoomed in Lanczos4-resampled region of interest with centroid coordinates, tumor surface area, consensus certainty label and source modality tags. Consensus arbitrated or crossmodal discordant cases are identified and shown with pulsing warning overlays. There is a non-dismissible disclaimer on each page that reads 'Research Tool Only – Not a Medical Device'.
+ 
+Fig. 5.1 landing page.
+ 
+Fig. 5.2 MRI upload interface.
+ 
+Fig. 5.3 Tri-panel visualisation.
+ 
+Fig. 5.4 Grad-CAM++ overlay.
+ 
+Fig. 5.5 YOLO11m object localisation.
+ 
+Fig. 5.6 — U-Net segmentation mask.
+ 
+Fig. 5.7 — Primary Clinical ROI panel.
+B. Backend Result Analysis
+The backend objectives focused on ensuring all three models meet or exceed deployment gate thresholds on truly held-out test data. All performance metrics were computed exclusively on data not seen during training. The evaluate.py script enforces hard performance thresholds and issues a non-zero return code if any threshold is not met, enabling direct CI/CD pipeline integration. Table V presents the deployment gate thresholds and achieved validation results.
+TABLE V
+DEPLOYMENT GATE VALIDATION STATUS
+Metric	Data Source	Achieved
+Classifier Accuracy	Kaggle held-out test	97.2% (3-TTA)
+Classifier Macro F1	Kaggle held-out test	0.9725 (3-TTA)
+YOLO11m mAP@0.5	BraTS val (15%)	0.9621
+U-Net Mean Dice	BraTS val (15%)	0.8330
+The Dual-Branch EfficientNetV2-S classifier surpassed both deployment gates with a test accuracy of 97.2% (with 3-view TTA; 96.5% single-pass) and 0.9725 macro F1. The bigger receptive field at 380×380 resolution has the greatest impact on meningioma-glioma discrimination, where peritumoral structural context is very important.
+After the two-phase training on the 28,544-image BraTS-derived detection dataset, YOLO11m had a 0.9621 mAP@0.5 on the held-out validation set (3,653 images). The U-Net segmentor was trained on a set of 24,354 FLAIR slice-mask pairs on the 15% stratified validation split, using a triplet loss (0.4×Dice + 0.3×BCE + 0.3×Focal). The Dual-Branch EfficientNetV2-S classifier was trained on an aggregated dataset of 18,687 images and strictly evaluated on 1,994 held-out test images. The backend guarantees that batch inference, consensus arbitration, cross-modal spatial validation, and domain-shift fallback handling are done correctly without losing data and without inconsistencies in the inference.
+
+VI. CONCLUSION AND FUTURE SCOPE
+In this paper, a multi-model deep learning pipeline to detect and classify brain tumors through a flask-based web application has been proposed. The system overcomes the main limitations of current single-model prototypes by incorporating Dual-Branch EfficientNetV2-S classification at native 380×380 resolution, YOLO11m bounding box detection trained over a two-phase curriculum, ResNet50 U-Net segmentation in a single clinical inference engine with consensus arbitration, cross-modal spatial validation, Grad-CAM++ explainability, MC-Dropout uncertainty quantification, and strict deployment gate enforcement. The architectural upgrades collectively yielded 97.2% test accuracy, 0.9725 macro F1, 0.9621 mAP@0.5, and 0.8330 mean Dice. All outputs are based on live model inference, all safety mechanisms are program enforced and all outputs are reviewed by a radiologist.
+Future research directions include: inference over successive axial slices for 3D volumetric tumor measurements; adding multi-channel MRI sequences (T1, T1Gd, T2); prospective clinical validation against expert radiologist ground truth; temperature scaling after inference to get more accurate probability estimates; support for DICOM for direct integration with PACS; and federated learning to train the model across multiple institutions without having to centralize sensitive patient information.
+REFERENCES
+[1] G. S. Tandel et al., "A review on a deep learning-based diagnosis of brain tumors," in Soft Computing, Berlin, Germany, 2019, vol. 23, no. 22, pp. 11849–11881.
+[2] S. Deepak and P. M. Ameer, "Brain tumor classification using deep CNN features via transfer learning," in Computers in Biology and Medicine, Amsterdam, Netherlands, 2019, vol. 111, p. 103345.
+[3] J. Amin et al., "Brain tumor segmentation and classification using deep learning: a review," in Wireless Personal Communications, Berlin, Germany, 2018, vol. 101, pp. 113–132.
+[4] M. S. Nawaz et al., "Multi-class brain tumor classification using deep learning and tumor segmentation using image processing techniques," in Int. J. Basic Appl. Sci., Dubai, UAE, 2020, vol. 9, no. 2, pp. 101–107.
+[5] O. Ronneberger, P. Fischer, and T. Brox, "U-Net: Convolutional networks for biomedical image segmentation," in Proc. MICCAI, Munich, Germany, 2015, pp. 234–241.
+[6] R. R. Selvaraju et al., "Grad-CAM: Visual explanations from deep networks via gradient-based localization," in Proc. IEEE ICCV, Venice, Italy, 2017, pp. 618–626.
+[7] A. Chattopadhay et al., "Grad-CAM++: Generalized gradient-based visual explanations," in Proc. IEEE WACV, Lake Tahoe, NV, 2018, pp. 839–847.
+[8] M. Tan and Q. V. Le, "EfficientNet: Rethinking model scaling for convolutional neural networks," in Proc. ICML, Long Beach, CA, 2019, pp. 6105–6114.
+[9] G. Jocher, A. Chaurasia, and J. Qiu, "Ultralytics YOLO11," GitHub, 2023. [Online]. Available: https://github.com/ultralytics/ultralytics
+[10] S. Bakas et al., "The RSNA-ASNR-MICCAI BraTS 2021 benchmark," arXiv:2107.02314, 2021.
+[11] Y. Gal and Z. Ghahramani, "Dropout as a Bayesian approximation: Representing model uncertainty in deep learning," in Proc. ICML, New York, NY, 2016, pp. 1050–1059.
+[12] M. Nickparvar, "Brain tumor MRI dataset," Kaggle, 2021. [Online]. Available: https://www.kaggle.com/datasets/masoudnickparvar/brain-tumor-mri-dataset
+[13] A. Buslaev et al., "Albumentations: Fast and flexible image augmentations," Information, vol. 11, no. 2, p. 125, 2020.

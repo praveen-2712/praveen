@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Gate-Controlled Inference Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Times New Roman', 'Georgia', serif;
+  }
+  .container {
+    width: 780px;
+    padding: 20px;
+  }
+  svg { width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div class="container">
+<svg viewBox="0 0 740 920" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+    <filter id="shadow" x="-3%" y="-3%" width="106%" height="106%">
+      <feDropShadow dx="1" dy="1" stdDeviation="1.5" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <!-- ===== TITLE ===== -->
+  <text x="370" y="22" text-anchor="middle" font-size="13" font-weight="bold" fill="#111">Gate-Controlled Inference Flow</text>
+
+  <!-- ===== Stage 1: MRI Scan Input ===== -->
+  <rect x="245" y="40" width="250" height="52" rx="8" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="370" y="62" text-anchor="middle" font-size="13" font-weight="bold" fill="#1E40AF">MRI Scan Input</text>
+  <text x="370" y="79" text-anchor="middle" font-size="10" fill="#3B82F6">JPEG/PNG intake</text>
+
+  <!-- Arrow down -->
+  <line x1="370" y1="92" x2="370" y2="118" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== Stage 2: Preprocessing ===== -->
+  <rect x="195" y="120" width="350" height="55" rx="8" fill="#D1FAE5" stroke="#10B981" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="370" y="143" text-anchor="middle" font-size="12" font-weight="bold" fill="#065F46">Preprocessing &amp; Normalization</text>
+  <text x="370" y="160" text-anchor="middle" font-size="9.5" fill="#059669">Brain masking · Scanner normalization · CLAHE stack</text>
+
+  <!-- Arrow splits into 3 -->
+  <line x1="370" y1="175" x2="370" y2="200" stroke="#333" stroke-width="1.5"/>
+  <!-- Left branch -->
+  <path d="M 370 200 L 130 200 L 130 225" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Center branch -->
+  <line x1="370" y1="200" x2="370" y2="225" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Right branch -->
+  <path d="M 370 200 L 610 200 L 610 225" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== Stage 3a: EfficientNetV2-S ===== -->
+  <rect x="40" y="227" width="180" height="80" rx="8" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="130" y="252" text-anchor="middle" font-size="12" font-weight="bold" fill="#92400E">EfficientNetV2-S</text>
+  <text x="130" y="268" text-anchor="middle" font-size="10" fill="#B45309">4-class classifier</text>
+  <text x="130" y="283" text-anchor="middle" font-size="9" fill="#D97706">MC-Dropout × 15 passes</text>
+  <text x="130" y="298" text-anchor="middle" font-size="9" fill="#D97706">380 × 380 RGB</text>
+
+  <!-- ===== Stage 3b: YOLOv11m ===== -->
+  <rect x="280" y="227" width="180" height="80" rx="8" fill="#FEE2E2" stroke="#EF4444" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="370" y="252" text-anchor="middle" font-size="12" font-weight="bold" fill="#991B1B">YOLOv11m</text>
+  <text x="370" y="268" text-anchor="middle" font-size="10" fill="#DC2626">Object detector</text>
+  <text x="370" y="283" text-anchor="middle" font-size="9" fill="#EF4444">conf &gt; 0.20 · IoU = 0.4</text>
+  <text x="370" y="298" text-anchor="middle" font-size="9" fill="#EF4444">640 × 640 RGB</text>
+
+  <!-- ===== Stage 3c: U-Net ===== -->
+  <rect x="520" y="227" width="180" height="80" rx="8" fill="#FCE7F3" stroke="#EC4899" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="610" y="252" text-anchor="middle" font-size="12" font-weight="bold" fill="#9D174D">U-Net (ResNet50)</text>
+  <text x="610" y="268" text-anchor="middle" font-size="10" fill="#DB2777">Pixel segmentor</text>
+  <text x="610" y="283" text-anchor="middle" font-size="9" fill="#EC4899">Sigmoid thr = 0.5</text>
+  <text x="610" y="298" text-anchor="middle" font-size="9" fill="#EC4899">256 × 256 Gray</text>
+
+  <!-- Arrows converge down from 3 models -->
+  <line x1="130" y1="307" x2="130" y2="340" stroke="#333" stroke-width="1.5"/>
+  <line x1="370" y1="307" x2="370" y2="340" stroke="#333" stroke-width="1.5"/>
+  <line x1="610" y1="307" x2="610" y2="340" stroke="#333" stroke-width="1.5"/>
+  <path d="M 130 340 L 370 340" fill="none" stroke="#333" stroke-width="1.5"/>
+  <path d="M 610 340 L 370 340" fill="none" stroke="#333" stroke-width="1.5"/>
+  <line x1="370" y1="340" x2="370" y2="365" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Side output: Grad-CAM from EfficientNet (dashed side branch) -->
+  <path d="M 40 267 L 10 267 L 10 350" fill="none" stroke="#8B5CF6" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <rect x="-30" y="350" width="80" height="35" rx="6" fill="#EDE9FE" stroke="#8B5CF6" stroke-width="1"/>
+  <text x="10" y="372" text-anchor="middle" font-size="9" font-weight="bold" fill="#5B21B6">Grad-CAM++</text>
+
+  <!-- ===== Stage 4: Consensus Validation Gate (Diamond) ===== -->
+  <polygon points="370,370 470,420 370,470 270,420" fill="#CCFBF1" stroke="#14B8A6" stroke-width="2" filter="url(#shadow)"/>
+  <text x="370" y="415" text-anchor="middle" font-size="11" font-weight="bold" fill="#115E59">Consensus</text>
+  <text x="370" y="432" text-anchor="middle" font-size="11" font-weight="bold" fill="#115E59">Validation Gate</text>
+
+  <!-- ===== Stage 5: Consensus Validation Detail ===== -->
+  <line x1="370" y1="470" x2="370" y2="495" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="230" y="498" width="280" height="55" rx="8" fill="#99F6E4" stroke="#0D9488" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="370" y="520" text-anchor="middle" font-size="11" font-weight="bold" fill="#115E59">Consensus Validation</text>
+  <text x="370" y="538" text-anchor="middle" font-size="9" fill="#0D9488">Spatial discordance · Glioma gate · YOLO override</text>
+
+  <!-- ===== 3 outcome branches ===== -->
+  <line x1="370" y1="553" x2="370" y2="575" stroke="#333" stroke-width="1.5"/>
+  <!-- Left -->
+  <path d="M 370 575 L 130 575 L 130 600" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Center -->
+  <line x1="370" y1="575" x2="370" y2="600" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Right -->
+  <path d="M 370 575 L 610 575 L 610 600" fill="none" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Left outcome: High Agreement -->
+  <rect x="50" y="603" width="160" height="45" rx="6" fill="#D1FAE5" stroke="#22C55E" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="130" y="621" text-anchor="middle" font-size="10" font-weight="bold" fill="#166534">High Agreement</text>
+  <text x="130" y="637" text-anchor="middle" font-size="9" fill="#15803D">Tumor segmented</text>
+
+  <!-- Center outcome: YOLO Override -->
+  <rect x="290" y="603" width="160" height="45" rx="6" fill="#FEF3C7" stroke="#EAB308" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="370" y="621" text-anchor="middle" font-size="10" font-weight="bold" fill="#854D0E">YOLO Override</text>
+  <text x="370" y="637" text-anchor="middle" font-size="9" fill="#A16207">Unclassified Finding</text>
+
+  <!-- Right outcome: Discordant -->
+  <rect x="530" y="603" width="160" height="45" rx="6" fill="#FEE2E2" stroke="#EF4444" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="610" y="621" text-anchor="middle" font-size="10" font-weight="bold" fill="#991B1B">Discordant Alert</text>
+  <text x="610" y="637" text-anchor="middle" font-size="9" fill="#DC2626">Radiologist review</text>
+
+  <!-- Converge to final report -->
+  <line x1="130" y1="648" x2="130" y2="670" stroke="#333" stroke-width="1.5"/>
+  <line x1="370" y1="648" x2="370" y2="670" stroke="#333" stroke-width="1.5"/>
+  <line x1="610" y1="648" x2="610" y2="670" stroke="#333" stroke-width="1.5"/>
+  <path d="M 130 670 L 610 670" fill="none" stroke="#333" stroke-width="1.5"/>
+  <line x1="370" y1="670" x2="370" y2="698" stroke="#333" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== Final Diagnostic Report ===== -->
+  <rect x="230" y="700" width="280" height="55" rx="8" fill="#E0E7FF" stroke="#6366F1" stroke-width="2" filter="url(#shadow)"/>
+  <text x="370" y="723" text-anchor="middle" font-size="12" font-weight="bold" fill="#312E81">Final Diagnostic Report</text>
+  <text x="370" y="741" text-anchor="middle" font-size="9.5" fill="#4338CA">Flask dashboard · Clinical panels · Disclaimers</text>
+
+  <!-- ===== Legend ===== -->
+  <rect x="140" y="790" width="460" height="110" rx="8" fill="#F9FAFB" stroke="#D1D5DB" stroke-width="1"/>
+  <text x="370" y="812" text-anchor="middle" font-size="11" font-weight="bold" fill="#374151">Legend</text>
+
+  <rect x="165" y="822" width="14" height="14" rx="2" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+  <text x="186" y="834" font-size="9.5" fill="#333">Input / Preprocessing</text>
+
+  <rect x="165" y="844" width="14" height="14" rx="2" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1"/>
+  <text x="186" y="856" font-size="9.5" fill="#333">Classifier (EfficientNetV2-S)</text>
+
+  <rect x="165" y="866" width="14" height="14" rx="2" fill="#FEE2E2" stroke="#EF4444" stroke-width="1"/>
+  <text x="186" y="878" font-size="9.5" fill="#333">Detector (YOLOv11m)</text>
+
+  <rect x="405" y="822" width="14" height="14" rx="2" fill="#FCE7F3" stroke="#EC4899" stroke-width="1"/>
+  <text x="426" y="834" font-size="9.5" fill="#333">Segmentor (U-Net)</text>
+
+  <rect x="405" y="844" width="14" height="14" rx="2" fill="#CCFBF1" stroke="#14B8A6" stroke-width="1"/>
+  <text x="426" y="856" font-size="9.5" fill="#333">Consensus / Validation Gate</text>
+
+  <rect x="405" y="866" width="14" height="14" rx="2" fill="#E0E7FF" stroke="#6366F1" stroke-width="1"/>
+  <text x="426" y="878" font-size="9.5" fill="#333">Final Output / Dashboard</text>
+
+</svg>
+</div>
+</body>
+</html>

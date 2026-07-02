@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis History | Neurologix</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+    <!-- Demo Banner -->
+    {% if is_demo %}
+    <div class="demo-top-banner">
+        <span>⚡ <strong>DEMO MODE ACTIVE</strong> — Model weights are currently simulated.</span>
+        <a href="/train">Train Models Now →</a>
+    </div>
+    {% endif %}
+
+    <!-- Clinical Navbar -->
+    <nav class="clinical-navbar">
+        <a href="/" class="nav-brand">
+            <span>🧠</span> <span class="brand-gradient">Neurologix</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/history" class="nav-link active">History</a>
+            <a href="/train" class="nav-link">Training Panel</a>
+        </div>
+    </nav>
+
+    <div class="history-list-grid">
+        <div style="margin-bottom: 24px;">
+            <h1 style="font-size: 2.2rem; line-height: 1.2;">Patient Scan Ingestion History</h1>
+            <p style="color: var(--text-secondary); margin-top: 6px;">
+                Review and recheck recently processed diagnostic sessions. Records are cached per server run.
+            </p>
+        </div>
+
+        {% if not history %}
+        <div class="glass-panel" style="padding: 40px; text-align: center; color: var(--text-secondary);">
+            <div style="font-size: 3rem; margin-bottom: 16px;">📂</div>
+            <h3>No ingestion history detected</h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 4px;">
+                Scans analyzed during this server session will appear here automatically.
+            </p>
+            <a href="/predict" class="btn" style="margin-top: 20px;">Analyze Scans Now</a>
+        </div>
+        {% else %}
+        
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+            {% for record in history %}
+            <div class="glass-panel history-row-card">
+                <img src="data:image/png;base64,{{ record.original_image }}" class="history-thumb" alt="MRI Thumbnail">
+                
+                <div class="history-details">
+                    <span class="pill 
+                        {% if record.label == 'NO TUMOR DETECTED' %}pill-teal
+                        {% elif record.label == 'GLIOMA' %}pill-red
+                        {% elif record.label == 'MENINGIOMA' %}pill-amber
+                        {% elif record.label == 'PITUITARY' or record.label == 'PITUITARY TUMOR' %}pill-blue
+                        {% else %}pill-purple{% endif %}" style="margin-bottom: 6px;">
+                        {{ record.label }}
+                    </span>
+                    <h3 style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.95rem;">
+                        CASE ID: {{ record.case_id }}
+                    </h3>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+                        Processed: {{ record.timestamp }}
+                    </p>
+                </div>
+
+                <div class="history-actions">
+                    <div style="text-align: right; margin-right: 12px;">
+                        <div style="font-size: 1.15rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--cyan);">
+                            {{ record.confidence }}%
+                        </div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                            Ensemble Cert.
+                        </div>
+                    </div>
+                    <a href="/history/view/{{ record.case_id }}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 8px 18px;">
+                        View Report
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% endif %}
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Flask
+instance/
+.webassets-cache
+
+# ── Training Data (too large, ~20GB) ──────────────────────────────────────────
+# Download via: python setup_kaggle_data.py
+data/
+
+# ── Training Runs & Logs ──────────────────────────────────────────────────────
+runs/
+scratch/
+tmp/
+*.log
+
+# ── Base YOLO Pretrained Weights (downloadable by ultralytics automatically) ──
+yolo26n.pt
+yolov8m.pt
+yolov8n.pt
+# yolo11m.pt kept — it's the base for our detector, include it
+
+# ── IDE ────────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── OS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

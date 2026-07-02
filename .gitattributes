@@ -1,0 +1,14 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# ── Git LFS — Large Model Weights ─────────────────────────────────────────────
+# All PyTorch and YOLO weight files are tracked via Git LFS.
+# Run `git lfs pull` after cloning to download the actual files.
+*.pt  filter=lfs diff=lfs merge=lfs -text
+*.pth filter=lfs diff=lfs merge=lfs -text
+*.h5  filter=lfs diff=lfs merge=lfs -text
+
+# ── Binary Assets ─────────────────────────────────────────────────────────────
+*.png binary
+*.jpg binary
+*.jpeg binary

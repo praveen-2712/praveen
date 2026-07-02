@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Control Panel | Neurologix</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+
+    <!-- Demo Banner -->
+    {% if is_demo %}
+    <div class="demo-top-banner">
+        <span>⚡ <strong>DEMO MODE ACTIVE</strong> — Model weights are currently simulated.</span>
+        <a href="/train">Train Models Now →</a>
+    </div>
+    {% endif %}
+
+    <!-- Clinical Navbar -->
+    <nav class="clinical-navbar">
+        <a href="/" class="nav-brand">
+            <span>🧠</span> <span class="brand-gradient">Neurologix</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/history" class="nav-link">History</a>
+            <a href="/train" class="nav-link active">Training Panel</a>
+        </div>
+    </nav>
+
+    <div class="training-dashboard">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+            <div>
+                <h1 style="font-size: 2.2rem; line-height: 1.2;">Training Control Panel</h1>
+                <p style="color: var(--text-secondary); margin-top: 6px;">
+                    Monitor, trigger, and orchestrate CUDA GPU training stages for the ensembled neural pipelines.
+                </p>
+            </div>
+            
+            <div class="glass-panel" style="padding: 10px 20px; display: flex; align-items: center; gap: 10px;">
+                <span class="checklist-status-dot" id="gpu-dot" style="background: var(--teal); box-shadow: 0 0 10px var(--teal-glow);"></span>
+                <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);" id="gpu-device-name">
+                    CUDA Device: {{ device_name | default("Checking...") }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Real-Time Training Status Panel -->
+        <div class="glass-panel" style="padding: 32px;" id="status-panel">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <span class="pill" id="status-badge" style="background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.3)">
+                        Checking status...
+                    </span>
+                    <h2 id="current-model-title" style="font-size: 1.4rem; margin-top: 8px;">Waiting for pipeline info</h2>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Execution stage</div>
+                    <div id="stage-number" style="font-size: 1.2rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--cyan);">Stage 0 / 3</div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="status-bar-fill" style="width: 0%;"></div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px;">
+                <span id="progress-text">0% Complete</span>
+                <span id="eta-text">ETA: N/A</span>
+            </div>
+
+            <!-- Big Metrics Grid -->
+            <div class="training-metric-grid" style="margin-top: 32px;">
+                <div class="glass-panel train-metric-card">
+                    <div class="train-metric-val" id="metric-epoch">0 / 0</div>
+                    <div class="train-metric-lbl">Current Epoch</div>
+                </div>
+                <div class="glass-panel train-metric-card">
+                    <div class="train-metric-val" id="metric-loss">0.000</div>
+                    <div class="train-metric-lbl">Current Loss</div>
+                </div>
+                <div class="glass-panel train-metric-card">
+                    <div class="train-metric-val" id="metric-acc">0.0%</div>
+                    <div class="train-metric-lbl">Validation Acc.</div>
+                </div>
+                <div class="glass-panel train-metric-card">
+                    <div class="train-metric-val" id="metric-elapsed">00:00</div>
+                    <div class="train-metric-lbl">Elapsed Time</div>
+                </div>
+            </div>
+
+            <!-- Run Control Buttons -->
+            <div style="display: flex; gap: 16px; margin-top: 32px; border-top: 1px solid var(--border-subtle); padding-top: 24px;">
+                <button id="btn-start-training" onclick="startTraining()" class="btn" style="flex: 1;">
+                    🚀 Trigger Pipeline Training
+                </button>
+                <button id="btn-stop-training" onclick="stopTraining()" class="btn btn-danger" style="display: none; padding: 14px 28px;">
+                    🛑 Abort Execution
+                </button>
+            </div>
+        </div>
+
+        <!-- Documentation details -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="glass-panel" style="padding: 24px;">
+                <h3 style="font-size: 1.1rem; margin-bottom: 12px;">🎓 Ingesting Kaggle MRI Dataset</h3>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6;">
+                    Training from scratch requires downloading the <strong>Brain Tumor MRI Dataset</strong>. The automated setup downloader scripts download files directly from the Kaggle API. 
+                </p>
+                <div class="glass-panel" style="margin-top: 16px; padding: 14px; background: rgba(0,0,0,0.2); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                    $env:KAGGLE_USERNAME="yourusername"<br>
+                    $env:KAGGLE_KEY="yourkey"<br>
+                    python setup_kaggle_data.py
+                </div>
+            </div>
+            
+            <div class="glass-panel" style="padding: 24px;">
+                <h3 style="font-size: 1.1rem; margin-bottom: 12px;">⚡ Stage-wise Neural Orchestration</h3>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6;">
+                    The training pipeline executes three dedicated learning phases:
+                </p>
+                <ul style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px; padding-left: 20px; line-height: 1.7;">
+                    <li><strong>Stage 1:</strong> EfficientNet-B4 4-class classifier (30 epochs)</li>
+                    <li><strong>Stage 2:</strong> YOLOv8m spatial bounding box localization (25 epochs)</li>
+                    <li><strong>Stage 3:</strong> ResNet50-based U-Net pixel segmentation (20 epochs)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Polling loop
+        function pollTrainingStatus() {
+            fetch('/train/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update GPU Device name
+                    document.getElementById('gpu-device-name').textContent = `Device: ${data.device}`;
+                    if (data.device.toLowerCase().includes('cpu')) {
+                        document.getElementById('gpu-dot').style.backgroundColor = 'var(--amber)';
+                        document.getElementById('gpu-dot').style.boxShadow = '0 0 10px var(--amber-glow)';
+                    } else {
+                        document.getElementById('gpu-dot').style.backgroundColor = 'var(--teal)';
+                        document.getElementById('gpu-dot').style.boxShadow = '0 0 10px var(--teal-glow)';
+                    }
+
+                    // Update UI components
+                    const badge = document.getElementById('status-badge');
+                    badge.textContent = data.status.toUpperCase();
+                    
+                    if (data.status === 'running') {
+                        badge.style.color = 'var(--cyan)';
+                        badge.style.backgroundColor = 'var(--cyan-dim)';
+                        badge.style.borderColor = 'rgba(6, 182, 212, 0.4)';
+                        document.getElementById('btn-start-training').disabled = true;
+                        document.getElementById('btn-start-training').textContent = '⚡ Training in progress...';
+                        document.getElementById('btn-stop-training').style.display = 'inline-block';
+                    } else {
+                        badge.style.color = 'var(--blue)';
+                        badge.style.backgroundColor = 'var(--blue-dim)';
+                        badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                        document.getElementById('btn-start-training').disabled = false;
+                        document.getElementById('btn-start-training').textContent = '🚀 Trigger Pipeline Training';
+                        document.getElementById('btn-stop-training').style.display = 'none';
+                    }
+
+                    document.getElementById('current-model-title').textContent = data.current_model;
+                    document.getElementById('stage-number').textContent = `Stage ${data.stage} / 3`;
+                    
+                    // Update Progress Bar
+                    document.getElementById('status-bar-fill').style.width = `${data.progress}%`;
+                    document.getElementById('progress-text').textContent = `${Math.round(data.progress)}% Complete`;
+                    document.getElementById('eta-text').textContent = `ETA: ${data.eta}`;
+                    
+                    // Metrics
+                    document.getElementById('metric-epoch').textContent = `${data.epoch} / ${data.total_epochs}`;
+                    document.getElementById('metric-loss').textContent = data.loss.toFixed(4);
+                    document.getElementById('metric-acc').textContent = `${(data.val_acc * 100).toFixed(1)}%`;
+                    document.getElementById('metric-elapsed').textContent = data.elapsed;
+                })
+                .catch(err => console.error("Error polling training status:", err));
+        }
+
+        function startTraining() {
+            if (!confirm("Are you sure you want to trigger the ensembled training pipeline on the server? This will spawn background PyTorch processes.")) return;
+            
+            fetch('/train/start', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    pollTrainingStatus();
+                })
+                .catch(err => alert("Failed to spawn training pipeline: " + err));
+        }
+
+        function stopTraining() {
+            if (!confirm("Abort pipeline execution? Active training epochs will be discarded.")) return;
+            
+            fetch('/train/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    pollTrainingStatus();
+                })
+                .catch(err => alert("Failed to stop training: " + err));
+        }
+
+        // Start polling on load
+        window.addEventListener('load', () => {
+            pollTrainingStatus();
+            // Poll every 3 seconds
+            setInterval(pollTrainingStatus, 3000);
+        });
+    </script>
+</body>
+</html>

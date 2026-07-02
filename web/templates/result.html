@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Report | Neurologix</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* Interactive result transitions */
+        .diag-view-pane img {
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .diag-view-pane.loading img {
+            opacity: 0;
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Demo Banner -->
+    {% if is_demo %}
+    <div class="demo-top-banner">
+        <span>⚡ <strong>DEMO MODE ACTIVE</strong> — Model weights are currently simulated.</span>
+        <a href="/train">Train Models Now →</a>
+    </div>
+    {% endif %}
+
+    <!-- Clinical Navbar -->
+    <nav class="clinical-navbar">
+        <a href="/" class="nav-brand">
+            <span>🧠</span> <span class="brand-gradient">Neurologix</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/history" class="nav-link">History</a>
+            <a href="/train" class="nav-link">Training Panel</a>
+        </div>
+    </nav>
+
+    <!-- Lightbox for Image Zoom -->
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+        <img id="lightbox-img" src="" alt="Expanded Diagnostic Scan">
+    </div>
+
+    <div class="dashboard-grid">
+        
+        <!-- Left Side: Clinical Sidebar Dashboard -->
+        <aside class="clinical-sidebar">
+            
+            <!-- Alert Section: Discordances or Overrides -->
+            <div id="alert-container">
+                <!-- Dynamically populated or rendered -->
+                {% if is_discordant %}
+                <div class="pulse-alert pulse-alert-red" style="margin-bottom:0;">
+                    <span>⚠</span> DISCORDANT MODALITIES DETECTED
+                </div>
+                {% endif %}
+                {% if used_yolo_override %}
+                <div class="pulse-alert pulse-alert-amber" style="margin-bottom:0;">
+                    <span>⚡</span> YOLO OVERRIDE CONSENSUS
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Gauge Panel -->
+            <div class="glass-panel gauge-panel">
+                <div class="sidebar-label">Diagnostics certainty</div>
+                
+                <div class="svg-gauge-container">
+                    <svg class="gauge-svg" width="150" height="150" viewBox="0 0 150 150">
+                        <circle class="gauge-track" cx="75" cy="75" r="70"/>
+                        <circle class="gauge-fill" id="circular-gauge" cx="75" cy="75" r="70" stroke="var(--blue)"/>
+                    </svg>
+                    <div class="gauge-val-text">
+                        <span class="gauge-percent" id="gauge-pct-text">{{ confidence }}%</span>
+                        <span class="gauge-label" id="severity-pill">Uncertain</span>
+                    </div>
+                </div>
+
+                <div id="finding-label-container" style="margin-top: 10px;">
+                    <div class="finding-name" id="finding-title" style="font-size: 1.15rem; font-weight: 800;">
+                        {{ label }}
+                    </div>
+                </div>
+                <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 8px;">
+                    Ensemble Confidence (TTA + MC-Dropout)
+                </div>
+            </div>
+
+            <!-- Metadata details -->
+            <div class="glass-panel" style="padding: 20px;">
+                <div class="sidebar-label">Patient Metadata</div>
+                <div class="meta-row">
+                    <div class="meta-item">
+                        <span class="meta-key">Case ID:</span>
+                        <span class="meta-val" id="meta-case-id">{{ case_id }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-key">Acquisition:</span>
+                        <span class="meta-val" id="meta-timestamp">{{ timestamp }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-key">Modality:</span>
+                        <span class="meta-val">MRI (FLAIR/T2)</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-key">Co-Registration:</span>
+                        <span class="meta-val" id="meta-registration">Automatic</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Trigger button -->
+            <button onclick="window.print()" class="btn" style="width: 100%;">
+                🖨 Export Clinical PDF
+            </button>
+            
+            <a href="/predict?mode={{ mode }}" class="btn btn-secondary" style="width: 100%; margin-top: -8px;">
+                ↑ Analyze New Scan
+            </a>
+
+        </aside>
+
+        <!-- Right Side: Viewport & Clinical Findings Report -->
+        <div class="right-col">
+            
+            <!-- Multi-Image Batch Carousel -->
+            {% if results and results | length > 1 %}
+            <div class="glass-panel batch-carousel-wrapper">
+                <div class="batch-title">
+                    <span>📚</span> Batch Sequences Processed ({{ results | length }} Scans)
+                </div>
+                <div class="batch-items-container">
+                    {% for r in results %}
+                    <div class="batch-item-card {% if loop.first %}active{% endif %}" onclick="switchResult({{ loop.index0 }})" id="batch-card-{{ loop.index0 }}">
+                        <img src="data:image/png;base64,{{ r.original_image }}" class="batch-item-thumb" alt="Scan Thumb">
+                        <div class="batch-item-lbl {% if r.label != 'NO TUMOR DETECTED' %}positive{% else %}negative{% endif %}">
+                            {{ r.label }}
+                        </div>
+                        <div class="batch-item-meta">{{ r.confidence }}% Cert.</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Interactive Tabbed Image Panel -->
+            <div class="glass-panel" style="padding: 24px;">
+                <div class="diagnostic-tabs">
+                    <button class="diag-tab active" onclick="switchTab('heatmap', this)" id="tab-heatmap">🌡 Heatmap Mapping</button>
+                    <button class="diag-tab" onclick="switchTab('detection', this)" id="tab-detection">🎯 Bounding Box</button>
+                    <button class="diag-tab" onclick="switchTab('segmentation', this)" id="tab-segmentation">🧬 Segment Mask</button>
+                    <button class="diag-tab" onclick="switchTab('roi', this)" id="tab-roi">🔍 Isolated ROI</button>
+                </div>
+
+                <div class="diag-view-pane" id="viewer-pane">
+                    <span class="pane-overlay-badge" id="pane-tag">Grad-CAM++ Hotspot</span>
+                    
+                    <!-- Main Viewer Image -->
+                    <img id="main-view-image" src="data:image/png;base64,{{ original_image }}" alt="Clinical View" onclick="openLightbox(this.src)">
+                    
+                    <!-- Placeholder in case ROI is empty -->
+                    <div class="img-placeholder" id="roi-placeholder" style="display: none;">
+                        <span>✅</span> No Isolated Pathology ROI Found
+                    </div>
+                </div>
+                
+                <div style="font-size: 0.72rem; color: var(--text-muted); text-align: center; margin-top: 12px;">
+                    * Click diagnostic image map to view full resolution overlay.
+                </div>
+            </div>
+
+            <!-- Radiology Paper-Based Clinical Report -->
+            <article class="radiology-report">
+                <div class="report-header">
+                    <div class="report-logo-section">
+                        <span class="report-logo">🧠</span>
+                        <div class="report-title-block">
+                            <h2>Neurologix Radiology Laboratory</h2>
+                            <p>Deep Learning Automated Diagnostic Assessment</p>
+                        </div>
+                    </div>
+                    <div style="text-align: right; font-size: 0.8rem; line-height: 1.5;">
+                        <strong>SYSTEM CODE:</strong> NLX-3.0-PRO<br>
+                        <strong>PROTOCOL:</strong> {{ mode | upper }} — EfficientNetV2-S + YOLO11m + UNet++
+                    </div>
+                </div>
+
+                <div class="report-meta-grid">
+                    <div class="report-meta-item">
+                        <span class="report-meta-key">Case ID:</span>
+                        <span class="report-meta-val" id="rep-case-id">{{ case_id }}</span>
+                    </div>
+                    <div class="report-meta-item">
+                        <span class="report-meta-key">Scan Acquisition:</span>
+                        <span class="report-meta-val" id="rep-timestamp">{{ timestamp }}</span>
+                    </div>
+                    <div class="report-meta-item">
+                        <span class="report-meta-key">Confidence Certainty:</span>
+                        <span class="report-meta-val" id="rep-confidence">{{ confidence }}%</span>
+                    </div>
+                    <div class="report-meta-item">
+                        <span class="report-meta-key">Primary Classification:</span>
+                        <span class="report-meta-val" id="rep-label">{{ label }}</span>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <h3>Clinical Finding Assessment</h3>
+                    <p id="rep-explanation">{{ report.explanation }}</p>
+                </div>
+
+                <div class="report-section">
+                    <h3>Anatomical ROI Characteristics</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px;">
+                        <div style="background: #f3f4f6; padding: 10px; border-radius: 4px; font-size: 0.8rem;">
+                            <strong>Localized Sector:</strong><br>
+                            <span id="rep-roi-loc">{% if report.primary_roi %}{{ report.primary_roi.location }}{% else %}N/A{% endif %}</span>
+                        </div>
+                        <div style="background: #f3f4f6; padding: 10px; border-radius: 4px; font-size: 0.8rem;">
+                            <strong>ICV Volume:</strong><br>
+                            <span id="rep-roi-area">{% if report.primary_roi %}{{ report.primary_roi.area_px }}{% else %}N/A{% endif %}</span>
+                        </div>
+                        <div style="background: #f3f4f6; padding: 10px; border-radius: 4px; font-size: 0.8rem;">
+                            <strong>Tumor Centroid:</strong><br>
+                            <span id="rep-roi-cen">{% if report.primary_roi %}{{ report.primary_roi.centroid }}{% else %}N/A{% endif %}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-section" style="margin-bottom: 0;">
+                    <h3>Radiological Advisory</h3>
+                    <p style="font-size: 0.85rem; font-style: italic; color: #4b5563;" id="rep-clinical-relevance">
+                        {{ report.clinical_relevance }} All pipeline findings are computed algorithmically and must be audited by a certified clinical radiologist prior to active therapeutic intervention.
+                    </p>
+                </div>
+
+                <div class="report-watermark">NLX</div>
+            </article>
+
+        </div><!-- end right col -->
+    </div><!-- end dashboard grid -->
+
+    <!-- Load data for client-side batch switching -->
+    <script>
+        // Inject results array
+        const allResults = {% if results %}{{ results | tojson }}{% else %}[]{% endif %};
+        
+        let currentIndex = 0;
+        let activeTab = 'heatmap'; // 'heatmap' | 'detection' | 'segmentation' | 'roi'
+        
+        // Severity mapping colors — covers all binary + multi-class label variants
+        const SEVERITY_COLORS = {
+            // Multi-class labels (uppercased by app.py)
+            'GLIOMA':            { stroke: '#ef4444', text: 'GLIOMA',     bg: 'var(--red-dim)',    label: 'Glioma' },
+            'MENINGIOMA':        { stroke: '#f59e0b', text: 'MENINGIOMA', bg: 'var(--amber-dim)',  label: 'Meningioma' },
+            'PITUITARY':         { stroke: '#3b82f6', text: 'PITUITARY',  bg: 'var(--blue-dim)',   label: 'Pituitary' },
+            'PITUITARY TUMOR':   { stroke: '#3b82f6', text: 'PITUITARY',  bg: 'var(--blue-dim)',   label: 'Pituitary' },
+            // Binary mode labels
+            'TUMOR DETECTED':    { stroke: '#ef4444', text: 'TUMOR',      bg: 'var(--red-dim)',    label: 'Tumor' },
+            'NO TUMOR DETECTED': { stroke: '#10b981', text: 'BENIGN',     bg: 'var(--teal-dim)',   label: 'No Tumor' },
+            // Indeterminate / override labels
+            'INDETERMINATE FINDING — RADIOLOGIST REVIEW RECOMMENDED': { stroke: '#f59e0b', text: 'REVIEW',   bg: 'var(--amber-dim)',  label: 'Review Req.' },
+            'UNCLASSIFIED FINDING—REVIEW REQUIRED':                   { stroke: '#8b5cf6', text: 'CRITICAL', bg: 'var(--purple-dim)', label: 'Audit Req.' },
+            'UNCLASSIFIED FINDING-REVIEW REQUIRED':                    { stroke: '#8b5cf6', text: 'CRITICAL', bg: 'var(--purple-dim)', label: 'Audit Req.' },
+            'UNCLASSIFIED FINDING — REVIEW REQUIRED':                  { stroke: '#8b5cf6', text: 'CRITICAL', bg: 'var(--purple-dim)', label: 'Audit Req.' },
+        };
+
+        // Initialize confidence gauge
+        function drawGauge(percent, strokeColor) {
+            const circle = document.getElementById('circular-gauge');
+            const circumference = 2 * Math.PI * 70; // r=70 -> 439.82
+            circle.style.stroke = strokeColor;
+            
+            // Calculate stroke-dashoffset
+            const offset = circumference - (percent / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+        }
+
+        function updateGauge(label, confidence) {
+            const normalizedLabel = label.toUpperCase().trim();
+            const config = SEVERITY_COLORS[normalizedLabel] || { stroke: '#3b82f6', text: 'UNKNOWN', bg: 'var(--blue-dim)', label: 'Analyze' };
+            
+            // Draw circle fill
+            drawGauge(confidence, config.stroke);
+            
+            // Update severity badge text
+            const badge = document.getElementById('severity-pill');
+            badge.textContent = config.text;
+            badge.style.color = config.stroke;
+            badge.style.backgroundColor = config.bg;
+            badge.style.border = `1px solid ${config.stroke}44`;
+            
+            // Update confidence text
+            document.getElementById('gauge-pct-text').textContent = `${confidence}%`;
+            document.getElementById('gauge-pct-text').style.color = config.stroke;
+        }
+
+        // Switch dynamic tabs for image viewer
+        function switchTab(tab, element) {
+            if (element) {
+                document.querySelectorAll('.diag-tab').forEach(t => t.classList.remove('active'));
+                element.classList.add('active');
+            }
+            activeTab = tab;
+            renderViewerImage();
+        }
+
+        // Render correct image in main viewport based on activeTab and currentIndex
+        function renderViewerImage() {
+            const pane = document.getElementById('viewer-pane');
+            const img = document.getElementById('main-view-image');
+            const tag = document.getElementById('pane-tag');
+            const roiPlaceholder = document.getElementById('roi-placeholder');
+            
+            let data = null;
+            if (allResults.length > 0) {
+                data = allResults[currentIndex];
+            } else {
+                // If single result passed
+                data = {
+                    original_image: "{{ original_image }}",
+                    detection_image: "{{ detection_image }}",
+                    segmentation_image: "{{ segmentation_image }}",
+                    roi_crop: "{{ roi_crop }}",
+                    report: { primary_roi: {% if report.primary_roi %}true{% else %}false{% endif %} }
+                };
+            }
+
+            pane.classList.add('loading');
+            
+            setTimeout(() => {
+                img.style.display = 'block';
+                roiPlaceholder.style.display = 'none';
+
+                if (activeTab === 'heatmap') {
+                    tag.textContent = 'Grad-CAM++ Mapping';
+                    tag.style.color = 'var(--blue)';
+                    img.src = "data:image/png;base64," + data.original_image;
+                } else if (activeTab === 'detection') {
+                    tag.textContent = 'Consensus Bounding Box';
+                    tag.style.color = 'var(--cyan)';
+                    img.src = "data:image/png;base64," + data.detection_image;
+                } else if (activeTab === 'segmentation') {
+                    tag.textContent = 'Pixel-wise Segmentation Mask';
+                    tag.style.color = 'var(--purple)';
+                    img.src = "data:image/png;base64," + data.segmentation_image;
+                } else if (activeTab === 'roi') {
+                    tag.textContent = 'Isolated Primary ROI Focus';
+                    tag.style.color = 'var(--teal)';
+                    if (data.roi_crop && data.roi_crop !== "") {
+                        img.src = "data:image/png;base64," + data.roi_crop;
+                    } else {
+                        img.style.display = 'none';
+                        roiPlaceholder.style.display = 'flex';
+                    }
+                }
+                
+                pane.classList.remove('loading');
+            }, 100);
+        }
+
+        // Switch current active index (for multiple batch processing)
+        function switchResult(index) {
+            if (index < 0 || index >= allResults.length) return;
+            
+            // Remove active class from previous batch card
+            document.querySelectorAll('.batch-item-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`batch-card-${index}`).classList.add('active');
+            
+            currentIndex = index;
+            const data = allResults[currentIndex];
+            
+            // 1. Update finding title
+            document.getElementById('finding-title').textContent = data.label;
+            
+            // 2. Update Gauge
+            updateGauge(data.label, data.confidence);
+            
+            // 3. Update Patient Metadata Sidebar
+            document.getElementById('meta-case-id').textContent = data.case_id;
+            document.getElementById('meta-timestamp').textContent = data.timestamp;
+            
+            // 4. Update Alerts panel
+            const alertCont = document.getElementById('alert-container');
+            alertCont.innerHTML = '';
+            if (data.is_discordant) {
+                alertCont.innerHTML += `
+                <div class="pulse-alert pulse-alert-red" style="margin-bottom:0;">
+                    <span>⚠</span> DISCORDANT MODALITIES DETECTED
+                </div>`;
+            }
+            if (data.used_yolo_override) {
+                alertCont.innerHTML += `
+                <div class="pulse-alert pulse-alert-amber" style="margin-bottom:0;">
+                    <span>⚡</span> YOLO OVERRIDE CONSENSUS
+                </div>`;
+            }
+            
+            // 5. Update Radiology Report Card
+            document.getElementById('rep-case-id').textContent = data.case_id;
+            document.getElementById('rep-timestamp').textContent = data.timestamp;
+            document.getElementById('rep-confidence').textContent = `${data.confidence}%`;
+            document.getElementById('rep-label').textContent = data.label;
+            document.getElementById('rep-explanation').textContent = data.report.explanation;
+            
+            if (data.report.primary_roi) {
+                document.getElementById('rep-roi-loc').textContent = data.report.primary_roi.location;
+                document.getElementById('rep-roi-area').textContent = data.report.primary_roi.area_px;
+                document.getElementById('rep-roi-cen').textContent = data.report.primary_roi.centroid;
+            } else {
+                document.getElementById('rep-roi-loc').textContent = 'N/A';
+                document.getElementById('rep-roi-area').textContent = 'N/A';
+                document.getElementById('rep-roi-cen').textContent = 'N/A';
+            }
+            
+            // 6. Refresh Viewer Pane
+            renderViewerImage();
+        }
+
+        // Expanded Lightbox controls
+        function openLightbox(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox').classList.add('open');
+        }
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('open');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeLightbox();
+        });
+
+        // Initialize gauge and render image on screen load
+        window.addEventListener('load', () => {
+            let label = "{{ label }}";
+            let conf = parseFloat("{{ confidence }}");
+            
+            if (allResults.length > 0) {
+                label = allResults[0].label;
+                conf = allResults[0].confidence;
+            }
+            
+            setTimeout(() => {
+                updateGauge(label, conf);
+                renderViewerImage();
+            }, 300);
+        });
+    </script>
+</body>
+</html>

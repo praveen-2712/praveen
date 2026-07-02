@@ -1,0 +1,11 @@
+{
+  "classifier": {
+    "accuracy": 0.9714,
+    "macro_f1": 0.9714,
+    "macro_precision": 0.9733,
+    "macro_recall": 0.9714,
+    "macro_auc": 0.9944
+  },
+  "unet": {},
+  "yolo": {}
+}

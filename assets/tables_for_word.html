@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tables for Word — Copy-Paste Ready</title>
+<style>
+  body { font-family: 'Times New Roman', serif; font-size: 10pt; padding: 40px; background: #fff; }
+  h3 { text-align: center; font-size: 10pt; margin-top: 40px; margin-bottom: 4px; }
+  h4 { text-align: center; font-size: 10pt; font-weight: bold; margin-bottom: 10px; }
+  table { border-collapse: collapse; margin: 0 auto 30px; font-size: 10pt; }
+  th, td { border: 1px solid #000; padding: 5px 12px; text-align: left; }
+  th { background: #f0f0f0; font-weight: bold; text-align: center; }
+  td { text-align: center; }
+  .note { color: #666; font-size: 9pt; text-align: center; margin-bottom: 30px; }
+  hr { margin: 50px 0; }
+</style>
+</head>
+<body>
+
+<p class="note">Open this in your browser → Select a table → Ctrl+C → Paste into Word</p>
+
+<hr>
+
+<h3>TABLE V</h3>
+<h4>DEPLOYMENT GATE VALIDATION STATUS</h4>
+<table>
+  <tr>
+    <th>Metric</th>
+    <th>Data Source</th>
+    <th>Achieved</th>
+  </tr>
+  <tr>
+    <td>Classifier Accuracy</td>
+    <td>Kaggle held-out test</td>
+    <td>97.69%</td>
+  </tr>
+  <tr>
+    <td>Classifier Macro F1</td>
+    <td>Kaggle held-out test</td>
+    <td>0.9770</td>
+  </tr>
+  <tr>
+    <td>Classifier Macro AUC</td>
+    <td>Kaggle held-out test</td>
+    <td>0.9955</td>
+  </tr>
+  <tr>
+    <td>YOLO11m mAP@0.5</td>
+    <td>BraTS val (15%)</td>
+    <td>0.9399</td>
+  </tr>
+  <tr>
+    <td>YOLO11m mAP@0.5:0.95</td>
+    <td>BraTS val (15%)</td>
+    <td>0.7846</td>
+  </tr>
+  <tr>
+    <td>U-Net++ Mean Dice</td>
+    <td>BraTS val (15%)</td>
+    <td>0.8826</td>
+  </tr>
+</table>
+
+<hr>
+
+<h3>TABLE II</h3>
+<h4>MODEL SPECIFICATIONS AND ROLES</h4>
+<table>
+  <tr>
+    <th>Model</th>
+    <th>Task</th>
+    <th>Input</th>
+    <th>Output</th>
+  </tr>
+  <tr>
+    <td>Dual-Branch EfficientNetV2-S</td>
+    <td>Classification</td>
+    <td>380×380 RGB</td>
+    <td>4-class softmax + uncertainty</td>
+  </tr>
+  <tr>
+    <td>YOLO11m</td>
+    <td>Detection</td>
+    <td>640×640 RGB</td>
+    <td>Bounding box + confidence</td>
+  </tr>
+  <tr>
+    <td>ResNet50 U-Net++</td>
+    <td>Segmentation</td>
+    <td>256×256 Gray</td>
+    <td>Binary mask + centroid + area</td>
+  </tr>
+</table>
+
+<hr>
+
+<h3>TABLE III</h3>
+<h4>AUGMENTATION TECHNIQUES AND CLINICAL JUSTIFICATION</h4>
+<table>
+  <tr>
+    <th>Technique</th>
+    <th>Models Applied</th>
+    <th>Clinical Rationale</th>
+  </tr>
+  <tr>
+    <td>RandomRotate90</td>
+    <td>Classifier, U-Net++</td>
+    <td style="text-align:left">Accounts for scanner orientation variance</td>
+  </tr>
+  <tr>
+    <td>HorizontalFlip</td>
+    <td>Classifier, U-Net++</td>
+    <td style="text-align:left">Left-right anatomical symmetry in brain MRI</td>
+  </tr>
+  <tr>
+    <td>GaussNoise</td>
+    <td>Classifier, U-Net++</td>
+    <td style="text-align:left">Models MRI acquisition noise and thermal fluctuations</td>
+  </tr>
+  <tr>
+    <td>CLAHE</td>
+    <td>Classifier, U-Net++</td>
+    <td style="text-align:left">Simulates contrast variability across field strengths</td>
+  </tr>
+  <tr>
+    <td>ElasticTransform</td>
+    <td>Classifier, U-Net++</td>
+    <td style="text-align:left">Mimics soft-tissue deformation and anatomical variability</td>
+  </tr>
+  <tr>
+    <td>CoarseDropout</td>
+    <td>Classifier only</td>
+    <td style="text-align:left">Prevents anchoring to localized bright spots</td>
+  </tr>
+  <tr>
+    <td>Mosaic (p=1.0)</td>
+    <td>YOLO11m</td>
+    <td style="text-align:left">Multi-scale tumor context augmentation</td>
+  </tr>
+  <tr>
+    <td>Mixup (p=0.15)</td>
+    <td>YOLO11m</td>
+    <td style="text-align:left">Smooths class-boundary decision surfaces</td>
+  </tr>
+  <tr>
+    <td>Label Smooth. (ε=0.05–0.1)</td>
+    <td>Classifier, YOLO11m</td>
+    <td style="text-align:left">Reduces overconfidence, improves calibration</td>
+  </tr>
+</table>
+
+<hr>
+
+<h3>TABLE IV</h3>
+<h4>FLASK APPLICATION ROUTE SUMMARY</h4>
+<table>
+  <tr>
+    <th>Route</th>
+    <th>Method</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>GET /</td>
+    <td>HTML</td>
+    <td style="text-align:left">Upload landing page with mandatory research disclaimer</td>
+  </tr>
+  <tr>
+    <td>GET /predict</td>
+    <td>HTML</td>
+    <td style="text-align:left">Single and multi-image MRI upload form</td>
+  </tr>
+  <tr>
+    <td>POST /predict</td>
+    <td>HTML</td>
+    <td style="text-align:left">Inference endpoint — returns full clinical dashboard</td>
+  </tr>
+</table>
+
+<hr>
+
+<h3>TABLE I</h3>
+<h4>LITERATURE SURVEY</h4>
+<table>
+  <tr>
+    <th>Title</th>
+    <th>Authors</th>
+    <th>Description</th>
+    <th>Research Gap</th>
+  </tr>
+  <tr>
+    <td style="text-align:left">DL for Brain Tumor Diagnosis</td>
+    <td>G. S. Tandel et al. (2019)</td>
+    <td style="text-align:left">Comprehensive review of CNN architectures for multi-class brain tumor classification.</td>
+    <td style="text-align:left">High variance in cross-dataset performance and lack of clinical-grade ensembles.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">Transfer Learning in Neuro-Oncology</td>
+    <td>S. Deepak and P. M. Ameer (2019)</td>
+    <td style="text-align:left">Evaluation of pretrained CNNs (GoogleNet) for 3-class classification on MRI.</td>
+    <td style="text-align:left">Limited spatial interpretability; no pixel-level segmentation integration.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">Integrated Segmentation &amp; Classification</td>
+    <td>J. Amin et al. (2018)</td>
+    <td style="text-align:left">Proposed sequential pipeline for tumor localization and class prediction.</td>
+    <td style="text-align:left">Lacks real-time uncertainty quantification and multi-model consensus.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">EfficientNet in Medical Imaging</td>
+    <td>M. Tan, Q. V. Le (ICML 2019)</td>
+    <td style="text-align:left">Compound scaling for high-resolution anatomical detail in pathology.</td>
+    <td style="text-align:left">Requires domain adaptation for MRI field-strength variations.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">U-Net: Biomedical Segmentation</td>
+    <td>O. Ronneberger et al. (MICCAI 2015)</td>
+    <td style="text-align:left">Encoder-decoder with skip connections; standard for glioma masking.</td>
+    <td style="text-align:left">Usually operates in isolation without classification gating.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">Grad-CAM++ Explainability</td>
+    <td>A. Chattopadhay et al. (WACV 2018)</td>
+    <td style="text-align:left">Weighted second-order gradients for precise localization.</td>
+    <td style="text-align:left">Background noise in MRI often causes false-positive activations.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">YOLO for Lesion Detection</td>
+    <td>G. Jocher et al. (2023)</td>
+    <td style="text-align:left">SOTA object detection; adapted for MRI lesion localization.</td>
+    <td style="text-align:left">High sensitivity to domain shift between T1 and FLAIR sequences.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">BraTS 2021 Benchmark</td>
+    <td>S. Bakas et al. (arXiv 2021)</td>
+    <td style="text-align:left">Standard dataset for glioma segmentation and volumetric analysis.</td>
+    <td style="text-align:left">Most models are not integrated into diagnostic web applications.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">MC-Dropout for Clinical Risk</td>
+    <td>Y. Gal, Z. Ghahramani (ICML 2016)</td>
+    <td style="text-align:left">Bayesian approximation for quantifying diagnostic uncertainty.</td>
+    <td style="text-align:left">Computational overhead in real-time clinical inference environments.</td>
+  </tr>
+  <tr>
+    <td style="text-align:left">Ensemble Consensus Systems</td>
+    <td>M. S. Nawaz et al. (2020)</td>
+    <td style="text-align:left">Multi-class brain tumor classification using deep learning and image processing.</td>
+    <td style="text-align:left">Lacks programmatic deployment gating and centroid-based spatial validation.</td>
+  </tr>
+</table>
+
+</body>
+</html>

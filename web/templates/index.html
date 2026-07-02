@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neurologix | Advanced Brain MRI Diagnostic Pipeline</title>
+    <meta name="description" content="Research-grade AI pipeline for brain MRI tumour classification, detection and segmentation.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* Extra landing-specific micro-interactions */
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Neural Network Canvas Animation -->
+    <canvas id="neural-canvas"></canvas>
+
+    <!-- Demo Banner -->
+    {% if is_demo %}
+    <div class="demo-top-banner">
+        <span>⚡ <strong>DEMO MODE ACTIVE</strong> — Model weights are currently simulated.</span>
+        <a href="/train">Train Models Now →</a>
+    </div>
+    {% endif %}
+
+    <!-- Clinical Navbar -->
+    <nav class="clinical-navbar">
+        <a href="/" class="nav-brand">
+            <span>🧠</span> <span class="brand-gradient">Neurologix</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link active">Home</a>
+            <a href="/history" class="nav-link">History</a>
+            <a href="/train" class="nav-link">Training Panel</a>
+        </div>
+    </nav>
+
+    <main class="landing-grid">
+        
+        <!-- Left Hero Section -->
+        <div class="hero-text-side fade-in-up">
+            <div class="hero-badge">Ensemble V3 Active</div>
+            <h1 class="hero-title">
+                Autonomous <br>
+                <span class="brand-gradient">Brain MRI</span> <br>
+                Diagnostic Pipeline
+            </h1>
+            <p class="hero-desc">
+                An advanced 3-stage deep neural network pipeline designed for research and educational MRI analysis. 
+                Neurologix performs classification, object detection localization, and pixel-wise tumor segmentation in a single consolidated inference pass.
+            </p>
+            
+            <div class="fancy-stats">
+                <div class="fancy-stat-item">
+                    <div class="fancy-stat-num">96.9%</div>
+                    <div class="fancy-stat-label">Classifier Acc.</div>
+                </div>
+                <div class="fancy-stat-item">
+                    <div class="fancy-stat-num">0.940</div>
+                    <div class="fancy-stat-label">mAP@0.5</div>
+                </div>
+                <div class="fancy-stat-item">
+                    <div class="fancy-stat-num">0.883</div>
+                    <div class="fancy-stat-label">Mean Dice</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Card Section -->
+        <div class="brain-mockup-wrapper fade-in-up delay-1">
+            <div class="glass-panel landing-card">
+                
+                <!-- Animated Brain Vector Logo -->
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div class="brain-pulse-container">
+                        <div class="brain-pulse-ring"></div>
+                        <div class="brain-pulse-ring"></div>
+                        <div class="brain-pulse-ring"></div>
+                        <svg class="brain-svg" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Left Hemisphere (Cyan) -->
+                            <path d="M256 64C160 64 96 128 96 224C96 288 128 320 128 368C128 416 160 448 224 448C240 448 256 432 256 416V64Z" fill="url(#cyan-grad)" opacity="0.85"/>
+                            <!-- Right Hemisphere (Blue) -->
+                            <path d="M256 64C352 64 416 128 416 224C416 288 384 320 384 368C384 416 352 448 288 448C272 448 256 432 256 416V64Z" fill="url(#blue-grad)" opacity="0.85"/>
+                            <!-- Neural Synapses Nodes -->
+                            <circle cx="180" cy="180" r="10" fill="#00f2c8" filter="drop-shadow(0 0 6px #00f2c8)"/>
+                            <circle cx="332" cy="180" r="10" fill="#2d9cff" filter="drop-shadow(0 0 6px #2d9cff)"/>
+                            <circle cx="210" cy="280" r="8" fill="#00f2c8" filter="drop-shadow(0 0 4px #00f2c8)"/>
+                            <circle cx="300" cy="280" r="8" fill="#2d9cff" filter="drop-shadow(0 0 4px #2d9cff)"/>
+                            <circle cx="160" cy="330" r="6" fill="#00f2c8" filter="drop-shadow(0 0 3px #00f2c8)"/>
+                            <circle cx="352" cy="330" r="6" fill="#2d9cff" filter="drop-shadow(0 0 3px #2d9cff)"/>
+                            <!-- Connecting Synaptic Lines -->
+                            <line x1="180" y1="180" x2="210" y2="280" stroke="#00f2c8" stroke-width="2" opacity="0.5"/>
+                            <line x1="332" y1="180" x2="300" y2="280" stroke="#2d9cff" stroke-width="2" opacity="0.5"/>
+                            <line x1="210" y1="280" x2="300" y2="280" stroke="#ffffff" stroke-width="1" stroke-dasharray="4 4" opacity="0.4"/>
+                            
+                            <defs>
+                                <linearGradient id="cyan-grad" x1="96" y1="256" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#06b6d4"/>
+                                    <stop offset="100%" stop-color="#0891b2"/>
+                                </linearGradient>
+                                <linearGradient id="blue-grad" x1="256" y1="256" x2="416" y2="256" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#2d9cff"/>
+                                    <stop offset="100%" stop-color="#3b82f6"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Analysis Mode Selection Form -->
+                <form method="post" id="mainForm">
+                    <h2 style="font-size: 1.25rem; margin-bottom: 8px;">Select Diagnostics Protocol</h2>
+                    <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 20px;">
+                        Configure the classification and localization pipelines for the uploaded scan sequences.
+                    </p>
+
+                    <div class="mode-grid">
+                        <div class="mode-tile active" id="tile-binary" onclick="updateMode('binary')">
+                            <span class="mode-tile-icon">🔬</span>
+                            <h3>Binary Screen</h3>
+                            <p>Detect presence of primary tumor masses</p>
+                        </div>
+                        <div class="mode-tile" id="tile-multi" onclick="updateMode('multi')">
+                            <span class="mode-tile-icon">📊</span>
+                            <h3>Full Diagnostic</h3>
+                            <p>Classify Glioma, Meningioma, &amp; Pituitary</p>
+                        </div>
+                    </div>
+
+                    <!-- Hidden input to submit mode -->
+                    <input type="hidden" name="mode" id="selected-mode" value="binary">
+
+                    <button type="submit" class="btn" style="width: 100%; padding: 16px;">
+                        Configure &amp; Upload Scans →
+                    </button>
+                </form>
+
+                <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 20px;">
+                    * Strictly for non-clinical research and evaluation.
+                </p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Canvas Particle JS -->
+    <script>
+        // Setup Canvas
+        const canvas = document.getElementById('neural-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        // Particle Class
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vy = (Math.random() - 0.5) * 0.3;
+                this.radius = Math.random() * 2 + 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.4)';
+                ctx.fill();
+            }
+        }
+
+        const particles = Array.from({ length: 70 }, () => new Particle());
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Draw connecting neural pathways
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dist = Math.hypot(particles[i].x - particles[j].x, particles[i].y - particles[j].y);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(59, 130, 246, ${0.15 * (1 - dist / 120)})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Mode Toggler
+        function updateMode(mode) {
+            document.querySelectorAll('.mode-tile').forEach(t => t.classList.remove('active'));
+            document.getElementById('tile-' + mode).classList.add('active');
+            document.getElementById('selected-mode').value = mode;
+        }
+    </script>
+</body>
+</html>

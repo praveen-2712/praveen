@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload MRI Scans | Neurologix</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .upload-wrapper {
+            max-width: 760px;
+            width: 100%;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-decoration: none;
+            margin-bottom: 24px;
+            transition: color 0.2s;
+            font-weight: 500;
+        }
+        .back-link:hover { color: var(--cyan); }
+        
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.96);
+            backdrop-filter: blur(16px);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #loading-overlay.active { display: flex; }
+        
+        .pipeline-spinner-wrap {
+            position: relative;
+            width: 90px;
+            height: 90px;
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-outer-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 4px solid rgba(6, 182, 212, 0.1);
+            border-top-color: var(--cyan);
+            border-radius: 50%;
+            animation: spin 1.2s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+        }
+        .loading-inner-ring {
+            position: absolute;
+            width: 70%;
+            height: 70%;
+            border: 3px solid rgba(59, 130, 246, 0.1);
+            border-bottom-color: var(--blue);
+            border-radius: 50%;
+            animation: spinReverse 0.8s linear infinite;
+        }
+        .loading-brain-icon {
+            font-size: 2rem;
+            animation: pulseGlow 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spinReverse { to { transform: rotate(-360deg); } }
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 10px var(--cyan-glow)); }
+        }
+
+        .loading-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+        .loading-subtitle {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Demo Banner -->
+    {% if is_demo %}
+    <div class="demo-top-banner">
+        <span>⚡ <strong>DEMO MODE ACTIVE</strong> — Model weights are currently simulated.</span>
+        <a href="/train">Train Models Now →</a>
+    </div>
+    {% endif %}
+
+    <!-- Clinical Navbar -->
+    <nav class="clinical-navbar">
+        <a href="/" class="nav-brand">
+            <span>🧠</span> <span class="brand-gradient">Neurologix</span>
+        </a>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/history" class="nav-link">History</a>
+            <a href="/train" class="nav-link">Training Panel</a>
+        </div>
+    </nav>
+
+    <!-- Pipeline Processing Overlay -->
+    <div id="loading-overlay">
+        <div class="pipeline-spinner-wrap">
+            <div class="loading-outer-ring"></div>
+            <div class="loading-inner-ring"></div>
+            <div class="loading-brain-icon">🧠</div>
+        </div>
+        <div class="loading-title brand-gradient">Processing Scan Sequence</div>
+        <div class="loading-subtitle">The Neurologix pipeline is running diagnostic inference...</div>
+        
+        <!-- Live pipeline checklist -->
+        <div class="analysis-checklist">
+            <div class="checklist-item" id="chk-1">
+                <div class="checklist-status-dot"></div>
+                <span>Scanner modality normalization &amp; CLAHE stack alignment...</span>
+            </div>
+            <div class="checklist-item" id="chk-2">
+                <div class="checklist-status-dot"></div>
+                <span>Intracranial contour gating &amp; skull stripping...</span>
+            </div>
+            <div class="checklist-item" id="chk-3">
+                <div class="checklist-status-dot"></div>
+                <span>Executing 19-pass MC-Dropout EfficientNetV2-S dual-branch ensemble...</span>
+            </div>
+            <div class="checklist-item" id="chk-4">
+                <div class="checklist-status-dot"></div>
+                <span>Running YOLO11m consensus spatial localization...</span>
+            </div>
+            <div class="checklist-item" id="chk-5">
+                <div class="checklist-status-dot"></div>
+                <span>Computing pixel-wise U-Net ResNet50 segmentation...</span>
+            </div>
+            <div class="checklist-item" id="chk-6">
+                <div class="checklist-status-dot"></div>
+                <span>Cross-modal spatial verification &amp; report compilation...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="upload-wrapper">
+        <a href="/" class="back-link">← Return to diagnostics dashboard</a>
+        
+        <div style="margin-bottom: 28px;">
+            <span class="pill {% if mode == 'binary' %}pill-cyan{% else %}pill-purple{% endif %}" style="margin-bottom: 10px;">
+                {% if mode == 'binary' %}🔬 Binary Screen{% else %}📊 Full Diagnostic{% endif %}
+            </span>
+            <h1 style="font-size: 2.2rem; line-height: 1.2;">Ingest Patient Scan Series</h1>
+            <p style="color: var(--text-secondary); margin-top: 6px;">
+                Upload one or multiple slices (T1, T2, or FLAIR sequences) to begin deep ensembled inference.
+            </p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" id="uploadForm" onsubmit="return handleFormSubmit(event)">
+            <!-- Premium Glass Panel Upload Zone -->
+            <div class="glass-panel premium-upload-zone" id="drop-area"
+                 onclick="document.getElementById('fileElem').click()"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event)">
+                 
+                <span class="upload-visual">💾</span>
+                <div class="upload-instruction">Drag &amp; drop clinical scans here</div>
+                <div class="upload-sub-text">T1, T2, FLAIR, JPEG, PNG, BMP, or TIFF slices</div>
+                
+                <button type="button" class="btn btn-secondary" style="font-size: 0.88rem; padding: 10px 24px;"
+                        onclick="event.stopPropagation(); document.getElementById('fileElem').click()">
+                    Browse Local System
+                </button>
+                
+                <input type="file" name="image" id="fileElem"
+                       accept=".jpg,.jpeg,.png,.bmp,.tiff,.tif"
+                       multiple
+                       required style="display:none" onchange="handleFiles(this.files)">
+
+                <!-- Grid Preview Tiles -->
+                <div class="files-preview-container" id="preview-grid" style="display:none;" onclick="event.stopPropagation()">
+                    <!-- Statically or dynamically generated preview tiles will go here -->
+                </div>
+            </div>
+
+            <!-- Ingest pipeline info row -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 28px 0;">
+                <div class="glass-panel" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 1.5rem; margin-bottom: 6px;">🩺</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Stage 1</div>
+                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--cyan); margin-top: 2px;">Ensemble Classifier</div>
+                </div>
+                <div class="glass-panel" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 1.5rem; margin-bottom: 6px;">🎯</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Stage 2</div>
+                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--blue); margin-top: 2px;">YOLO Detector</div>
+                </div>
+                <div class="glass-panel" style="padding: 16px; text-align: center;">
+                    <div style="font-size: 1.5rem; margin-bottom: 6px;">🧬</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Stage 3</div>
+                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--purple); margin-top: 2px;">U-Net Segmentor</div>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; gap: 16px; align-items: center; margin-top: 8px;">
+                <button type="submit" class="btn" id="predictBtn" style="flex: 1; padding: 16px;">
+                    Execute Diagnostic Pass →
+                </button>
+                <button type="button" class="btn btn-danger" id="clearBtn"
+                        style="display:none; padding: 16px 24px;" onclick="clearFiles()">Reset Ingestion</button>
+            </div>
+        </form>
+
+        <div style="font-size: 0.72rem; color: var(--text-muted); text-align: center; margin-top: 36px; line-height: 1.7;">
+            ⚠ <strong>Clinical Protocol Warning:</strong> This is a secure research processing node. Do not upload HIPAA-protected health information (PHI) without proper authorization. System outputs are simulated or research-grade and must not guide therapeutic interventions.
+        </div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+
+        function handleFiles(files) {
+            if (!files.length) return;
+            
+            // Add new files to the list
+            for (let i = 0; i < files.length; i++) {
+                // Check if already in list
+                if (!selectedFiles.some(f => f.name === files[i].name && f.size === files[i].size)) {
+                    selectedFiles.push(files[i]);
+                }
+            }
+
+            renderPreviews();
+        }
+
+        function renderPreviews() {
+            const grid = document.getElementById('preview-grid');
+            const clearBtn = document.getElementById('clearBtn');
+            const uploadZone = document.getElementById('drop-area');
+            
+            if (selectedFiles.length === 0) {
+                clearFiles();
+                return;
+            }
+
+            grid.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const tile = document.createElement('div');
+                tile.className = 'preview-tile';
+                
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                
+                const name = document.createElement('div');
+                name.className = 'preview-tile-name';
+                name.textContent = file.name;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'preview-tile-remove';
+                removeBtn.innerHTML = '✕';
+                removeBtn.type = 'button';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeFile(index);
+                };
+
+                tile.appendChild(img);
+                tile.appendChild(name);
+                tile.appendChild(removeBtn);
+                grid.appendChild(tile);
+            });
+
+            grid.style.display = 'grid';
+            clearBtn.style.display = 'inline-block';
+            uploadZone.style.padding = '30px 24px';
+            
+            // Re-sync input element files list
+            syncInputElement();
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            renderPreviews();
+        }
+
+        function clearFiles() {
+            selectedFiles = [];
+            document.getElementById('fileElem').value = '';
+            document.getElementById('preview-grid').style.display = 'none';
+            document.getElementById('clearBtn').style.display = 'none';
+            document.getElementById('drop-area').style.padding = '';
+        }
+
+        function syncInputElement() {
+            const dataTransfer = new DataTransfer();
+            selectedFiles.forEach(file => dataTransfer.items.add(file));
+            document.getElementById('fileElem').files = dataTransfer.files;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('drop-area').classList.add('drag-over');
+        }
+        
+        function handleDragLeave(e) {
+            document.getElementById('drop-area').classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('drop-area').classList.remove('drag-over');
+            const dt = e.dataTransfer;
+            if (dt.files.length) {
+                handleFiles(dt.files);
+            }
+        }
+
+        // Animate checklist sequentially
+        function runChecklistAnimation(callback) {
+            const items = [1, 2, 3, 4, 5, 6];
+            let current = 0;
+
+            function nextItem() {
+                if (current > 0) {
+                    const prev = document.getElementById(`chk-${items[current-1]}`);
+                    prev.classList.remove('active');
+                    prev.classList.add('completed');
+                }
+                
+                if (current < items.length) {
+                    const item = document.getElementById(`chk-${items[current]}`);
+                    item.classList.add('active');
+                    current++;
+                    setTimeout(nextItem, 800); // 800ms per stage
+                } else {
+                    callback();
+                }
+            }
+
+            nextItem();
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            if (selectedFiles.length === 0) {
+                alert("Please upload at least one brain MRI slice to analyze.");
+                return false;
+            }
+
+            // Show overlay
+            document.getElementById('loading-overlay').classList.add('active');
+            
+            // Run premium sequential checklist animations before form submission
+            runChecklistAnimation(() => {
+                document.getElementById('uploadForm').submit();
+            });
+
+            return false;
+        }
+    </script>
+</body>
+</html>
